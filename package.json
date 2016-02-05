@@ -1,0 +1,28 @@
+{
+  "name": "node-webhooks",
+  "version": "1.0.0",
+  "description": "Create and trigger your own webHooks",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/roccomuso/node-webhooks.git"
+  },
+  "keywords": [
+    "webhooks",
+    "trigger",
+    "web"
+  ],
+  "author": "Rocco Musolino <rocco@hackerstribe.com> (http://hackerstribe.com)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/roccomuso/node-webhooks/issues"
+  },
+  "homepage": "https://github.com/roccomuso/node-webhooks#readme",
+  "dependencies": {
+    "jsonfile": "^2.2.3",
+    "request": "^2.69.0"
+  }
+}
