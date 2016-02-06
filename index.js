@@ -208,7 +208,7 @@ WebHooks.prototype.remove = function(shortname, url) { // url is optional
 						resolve(true);
 					});
 
-				}
+				} else reject('webHook doesn\'t exists');
 
 			}
 
