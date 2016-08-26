@@ -86,15 +86,17 @@ function _setListeners(self){
 
 function _getRequestFunction(self, url){
 	// return the function then called by the event listener.
-	var func = function(json_data){ // argument required when eventEmitter.emit()
+	var func = function(json_data, headers_data){ // argument required when eventEmitter.emit()
+			var obj = {'Content-Type': 'application/json'};
+			var headers = headers_data ? Object.assign(obj, headers_data) : obj;
 
 	    	if (self.DEBUG) console.log('POST request to:', url);
-			// POST request to the istantiated URL
+			// POST request to the instantiated URL with custom headers if provided
 			request({
 			    method: 'POST',
 			    uri: url,
 			    strictSSL: false,
-			    headers: {'Content-Type': 'application/json'},
+			    headers: headers,
 			    body: JSON.stringify(json_data) 
 			  },
 			  function (error, response, body) {
@@ -110,9 +112,9 @@ function _getRequestFunction(self, url){
 
 // 'prototype' has improved performances, let's declare the methods
 
-WebHooks.prototype.trigger = function(shortname, json_data) {
+WebHooks.prototype.trigger = function(shortname, json_data, headers_data) {
 	// trigger a webHook
-	eventEmitter.emit(shortname, json_data);
+	eventEmitter.emit(shortname, json_data, headers_data);
 };
 
 WebHooks.prototype.add = function(shortname, url) { // url is required

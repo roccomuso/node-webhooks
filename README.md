@@ -48,7 +48,7 @@ webHooks.add('shortname2', 'http://127.0.0.1:9000/prova2/').then(function(){
 
 // trigger a specific webHook
 webHooks.trigger('shortname1', {data: 123});
-webHooks.trigger('shortname2', {data: 123456}); // payload will be sent as POST request with JSON body (Content-Type: application/json)
+webHooks.trigger('shortname2', {data: 123456}, {header: 'header'}); // payload will be sent as POST request with JSON body (Content-Type: application/json) and custom header
 	
 ```
 
@@ -74,7 +74,7 @@ Remove only one single url attached to the selected webHook.
 A json body with the url parameter is required: { "url": "http://..." }
 
 - <code>POST /api/webhook/trigger/[WebHookShortname]</code>
-Trigger a webHook. It requires a JSON body that will be turned over to the webHook URLs.
+Trigger a webHook. It requires a JSON body that will be turned over to the webHook URLs. You can also provide custom headers.
 
 
 
