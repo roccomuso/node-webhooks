@@ -29,6 +29,6 @@ webHooks.add('shortname2', 'http://127.0.0.1:9000/prova2/').then(function(){
 
 // trigger a specific webHook
 webHooks.trigger('shortname1', {data: 123});
-webHooks.trigger('shortname2', {data: 123456}); // payload will be sent as POST request with JSON body (Content-Type: application/json)
+webHooks.trigger('shortname2', {data: 123456}, {header: 'header'}); // payload will be sent as POST request with JSON body (Content-Type: application/json) and custom header
 
 
