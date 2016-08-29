@@ -13,6 +13,11 @@ Install:
 
 When a webHook is triggered it will send an HTTPS POST request to the attached URLs, containing a JSON-serialized Update (the one specified when you call the **trigger** method).
 
+## Debug
+
+This module makes use of the popular [debug](https://github.com/visionmedia/debug) package.Use the env variable to enable debug: <code>DEBUG=node-webhooks</code>.
+To launch the example and enable debug: <code>DEBUG=node-webhooks node example.js</code>
+
 ## Usage
 
 ```javascript
@@ -23,7 +28,6 @@ var WebHooks = require('./index');
 
 var webHooks = new WebHooks({
     db: './webHooksDB.json', // json file that store webhook URLs
-    DEBUG: true
 });
 
 // sync instantation - add a new webhook called 'shortname1'
@@ -49,7 +53,7 @@ webHooks.add('shortname2', 'http://127.0.0.1:9000/prova2/').then(function(){
 // trigger a specific webHook
 webHooks.trigger('shortname1', {data: 123});
 webHooks.trigger('shortname2', {data: 123456}, {header: 'header'}); // payload will be sent as POST request with JSON body (Content-Type: application/json) and custom header
-	
+
 ```
 
 ## API examples
