@@ -13,6 +13,7 @@ DB Structure Example:
 
 */
 
+var debug = require('debug')('node-webhooks');
 var jsonfile = require('jsonfile');
 var fs = require('fs');
 var crypto = require('crypto');
@@ -21,15 +22,13 @@ var events = require('events');
 var eventEmitter = new events.EventEmitter();
 
 // will contain all the functions. We need to store them to be able to remove the listener callbacks
-var _functions = {}; 
+var _functions = {};
 
 // WebHooks Class
 function WebHooks(options){
 	if (typeof options !== 'object') throw new TypeError('Expected an Object');
 	if (typeof options.db !== 'string') throw new TypeError('db Must be a String path');
 
-
-	this.DEBUG = (typeof options.DEBUG === 'boolean') ? options.DEBUG : false;
 	this.db = options.db;
 
 	var self = this;
@@ -37,12 +36,12 @@ function WebHooks(options){
 	try{
 		fs.accessSync(this.db, fs.R_OK | fs.W_OK);
 		//DB already exists, set listeners for every URL.
-		if (self.DEBUG) console.log('webHook DB loaded, setting listeners...');
+		debug('webHook DB loaded, setting listeners...');
 		_setListeners(self);
 	} catch(e){ // DB file not found, initialize it
 		if (e.hasOwnProperty('code')){
 			if (e.code === 'ENOENT'){ // file not found, init DB:
-				if (self.DEBUG) console.log('webHook DB init');
+				debug('webHook DB init');
 				_initDB(self.db);
 			} else console.error(e);
 		} else console.error(e);
@@ -81,7 +80,7 @@ function _setListeners(self){
 	// console.log(_functions[0] == _functions[1]);
 	// console.log(_functions[1] == _functions[2]);
 	// console.log(_functions[0] == _functions[2]);
-	
+
 }
 
 function _getRequestFunction(self, url){
@@ -90,18 +89,18 @@ function _getRequestFunction(self, url){
 			var obj = {'Content-Type': 'application/json'};
 			var headers = headers_data ? Object.assign(obj, headers_data) : obj;
 
-	    	if (self.DEBUG) console.log('POST request to:', url);
+	    	debug('POST request to:', url);
 			// POST request to the instantiated URL with custom headers if provided
 			request({
 			    method: 'POST',
 			    uri: url,
 			    strictSSL: false,
 			    headers: headers,
-			    body: JSON.stringify(json_data) 
+			    body: JSON.stringify(json_data)
 			  },
 			  function (error, response, body) {
-				    if ((error || response.statusCode !== 200 ) && self.DEBUG) return console.error('HTTP failed: '+ error);
-					if (self.DEBUG) console.log('Request sent - Server responded with:', body);
+				    if ((error || response.statusCode !== 200 )) return debug('HTTP failed: '+ error);
+					debug('Request sent - Server responded with:', body);
 			  }
 			);
 
@@ -124,18 +123,18 @@ WebHooks.prototype.add = function(shortname, url) { // url is required
 
 	var self = this;
 	return new Promise(function(resolve, reject){
-		
+
 		try{
 
 				var obj = jsonfile.readFileSync(self.db);
 				if (!obj) throw Error('can\'t read webHook DB content');
-				
+
 				var modified = false;
 				if (obj[shortname]){
 					// shortname already exists
 					if (obj[shortname].indexOf(url) === -1){
 						// url doesn't exists for given shortname
-						if (self.DEBUG) console.log('url added to an existing shortname!');
+						debug('url added to an existing shortname!');
 						obj[shortname].push(url);
 						var enc_url = crypto.createHash('md5').update(url).digest('hex');
 				    	_functions[enc_url] = _getRequestFunction(self, url);
@@ -144,7 +143,7 @@ WebHooks.prototype.add = function(shortname, url) { // url is required
 					}
 				}else{
 					// new shortname
-					if (self.DEBUG) console.log('new shortname!');
+					debug('new shortname!');
 					obj[shortname] = [url];
 					var enc_url = crypto.createHash('md5').update(url).digest('hex');
 				    _functions[enc_url] = _getRequestFunction(self, url);
@@ -225,7 +224,7 @@ function _removeUrlFromShortname(self, shortname, url, callback){
 
 	try{
 		var obj = jsonfile.readFileSync(self.db);
-			
+
 			var deleted = false;
 			var len = obj[shortname].length;
 			if (obj[shortname].indexOf(url) !== -1)
@@ -234,7 +233,7 @@ function _removeUrlFromShortname(self, shortname, url, callback){
 			// save it back to the DB
 			if (deleted){
 				jsonfile.writeFileSync(self.db, obj);
-				if (self.DEBUG) console.log('url removed from existing shortname');
+				debug('url removed from existing shortname');
 				callback(undefined, deleted);
 			} else callback(undefined, deleted);
 
@@ -251,13 +250,13 @@ function _removeShortname(self, shortname, callback){
 		delete obj[shortname];
 		// save it back to the DB
 		jsonfile.writeFileSync(self.db, obj);
-		if (self.DEBUG) console.log('whole shortname urls removed');
+		debug('whole shortname urls removed');
 		callback(undefined);
-		
+
 	}catch(e){
 		callback(e);
-	}			
-		
+	}
+
 }
 
 // async method
@@ -269,7 +268,7 @@ WebHooks.prototype.getDB = function() {
 			if (err){
 			  	if (err.code === 'ENOENT') // file not found
 					reject('file not found');
-				 else 
+				 else
 				  	reject(err);
 			}else{
 				// file exists
@@ -288,7 +287,7 @@ WebHooks.prototype.getWebHook = function(shortname) {
 			if (err){
 			  	if (err.code === 'ENOENT') // file not found
 					reject('file not found');
-				 else 
+				 else
 				  	reject(err);
 			}else{
 				// file exists
@@ -306,4 +305,3 @@ WebHooks.prototype.get_functions = function(){
 };
 
 module.exports = WebHooks;
-
