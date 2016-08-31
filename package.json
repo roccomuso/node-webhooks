@@ -4,7 +4,7 @@
   "description": "Create and trigger your own webHooks",
   "main": "index.js",
   "scripts": {
-    "test": "./node_modules/.bin/mocha --timeout=5000 --require should test/**/*.js"
+    "test": "./node_modules/.bin/mocha --timeout=5000 test/**/*.js"
   },
   "repository": {
     "type": "git",
