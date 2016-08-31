@@ -4,7 +4,7 @@
   "description": "Create and trigger your own webHooks",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "./node_modules/.bin/mocha --timeout=5000 --require should test/**/*.js"
   },
   "repository": {
     "type": "git",
@@ -26,5 +26,9 @@
     "debug": "^2.2.0",
     "jsonfile": "^2.2.3",
     "request": "^2.69.0"
+  },
+  "devDependencies": {
+    "mocha": "1.21.4",
+    "should": "4.0.4"
   }
 }
