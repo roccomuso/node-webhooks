@@ -15,6 +15,7 @@ DB Structure Example:
 
 var debug = require('debug')('node-webhooks');
 var Promise = require('bluebird'); // for backward compatibility
+var _ = require('lodash');
 var jsonfile = require('jsonfile');
 var fs = require('fs');
 var crypto = require('crypto');
@@ -88,7 +89,7 @@ function _getRequestFunction(self, url){
 	// return the function then called by the event listener.
 	var func = function(json_data, headers_data){ // argument required when eventEmitter.emit()
 			var obj = {'Content-Type': 'application/json'};
-			var headers = headers_data ? Object.assign(obj, headers_data) : obj;
+			var headers = headers_data ? _.merge(obj, headers_data) : obj;
 
 	    	debug('POST request to:', url);
 			// POST request to the instantiated URL with custom headers if provided
