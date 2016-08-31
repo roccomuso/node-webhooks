@@ -1,4 +1,5 @@
-node-webhooks[![Build Status](https://travis-ci.org/roccomuso/node-webhooks.svg?branch=master)](https://travis-ci.org/roccomuso/node-webhooks)
+node-webhooks [![Build Status](https://travis-ci.org/roccomuso/node-webhooks.svg?branch=master)](https://travis-ci.org/roccomuso/node-webhooks) [![NPM Version](https://img.shields.io/npm/v/node-webhooks.svg)](https://www.npmjs.com/package/node-webhooks)
+
 =====================
 
 ## What WebHooks are used for
@@ -11,6 +12,7 @@ Install:
 
     npm install node-webhooks --save
 
+Supporting Node.js 0.12 or above.
 
 ## How it works
 
