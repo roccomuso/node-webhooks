@@ -28,7 +28,7 @@
     "request": "^2.69.0"
   },
   "devDependencies": {
-    "mocha": "1.21.4",
-    "should": "4.0.4"
+    "chai": "3.5.0",
+    "mocha": "1.21.4"
   }
 }
