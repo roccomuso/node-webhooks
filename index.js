@@ -14,6 +14,7 @@ DB Structure Example:
 */
 
 var debug = require('debug')('node-webhooks');
+var Promise = require('bluebird'); // for backward compatibility
 var jsonfile = require('jsonfile');
 var fs = require('fs');
 var crypto = require('crypto');
