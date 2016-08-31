@@ -1,7 +1,7 @@
 var chai = require('chai');
 var expect = chai.expect;
 var should = chai.should();
-var debug = require('debug')('node-webhooks');
+var debug = require('debug')('test-suite');
 var http = require('http');
 var fs = require('fs');
 var path = require('path');
@@ -9,11 +9,32 @@ var WebHooks = require('../index');
 var webHooks;
 var DB_FILE = path.join(__dirname, './webHooksDB.json');  // json file that store webhook URLs
 
+// IMPLEMENTED TESTS:
+
+// - spawn a basic server
+// - create a webhook istance
+// - check wether the json db file exists or not
+// - put a webHook
+// - add a new URL to the existing webHook
+// - call the getWebHook method
+// - fire the webHook with no body or headers
+// - fire the webHook with custom body.
+// - fire the webHook with custom headers.
+// - fire the webHook with both body and headers.
+// - delete a single webHook URL.
+// - fire the webHook and make sure just one URL is called.
+// - delete the entire webHook.
+// - fire the webHook and make sure no request is dispatched at all.
+// - create a new webHook.
+// - fire the webHook 1000 times. Expected 1000 REST calls.
+
+
 // instantiate a basic web server
 var PORT = 8000;
 var URI = 'http://127.0.0.1:'+PORT;
 
 var OUTCOMES = {};
+var LOADTEST = 0;
 
 function handleRequest(request, response){
     debug('called method:', request.method);
@@ -25,6 +46,7 @@ function handleRequest(request, response){
     }).on('end', function() {
       body = Buffer.concat(body).toString(); // as string
       OUTCOMES[request.url] = {headers: request.headers, body: body};
+      if (request.url.indexOf('/2/') !== -1) LOADTEST++;
       debug('body:', body);
       response.end('It Works!! Path Hit: ' + request.url);
 
@@ -169,21 +191,21 @@ describe('Tests >', function(){
     webHooks.remove('hook1', URI+'/1/bbb').then(function(removed){
       expect(removed).to.equal(true);
       done();
-    }).catch(function(err){throw new Error(err);});
+    }).catch(function(err){done(err);});
   });
 
   it ('should return false trying to delete a not existing webHook URL', function(done){
     webHooks.remove('hook1', URI+'/1/bbb').then(function(removed){
       expect(removed).to.equal(false);
       done();
-    }).catch(function(err){throw new Error(err);});
+    }).catch(function(err){done(err);});
   });
 
   it ('should return false trying to delete a not existing webHook', function(done){
     webHooks.remove('not-existing').then(function(removed){
       expect(removed).to.equal(false);
       done();
-    }).catch(function(err){throw new Error(err);});
+    }).catch(function(err){done(err);});
   });
 
   it('fire the webHook and make sure just one URL is called', function(done){
@@ -202,7 +224,7 @@ describe('Tests >', function(){
     webHooks.remove('hook1').then(function(removed){
       expect(removed).to.equal(true);
       done();
-    }).catch(function(err){throw new Error(err);});
+    }).catch(function(err){done(err);});
   });
 
   it('should fire the deleted webHook and make sure no request is dispatched at all', function(done){
@@ -216,23 +238,45 @@ describe('Tests >', function(){
     }, 1000);
   });
 
+  it('should create a new webHook called hook2 for loadtest', function(done){
+    webHooks.add('hook2', URI+'/2/aaa').then(
+      webHooks.add('hook2', URI+'/2/bbb').then(function(){
+        done();
+      })
+    ).catch(function(err){
+        throw new Error(err);
+    });
+  });
+
+  it ('check webHooks were saved successfully using the .getWebHook method', function(done){
+    webHooks.getWebHook('hook2').then(function(obj){
+      debug('hook2:', obj);
+      should.exist(obj);
+      expect(obj.length).to.equal(2);
+      expect(obj).to.have.members([URI+'/2/aaa', URI+'/2/bbb']);
+      done();
+    }).catch(function(err){
+      throw new Error(err);
+    });
+  });
+
+
+  it('should fire the webHook 1000 times and 2000 REST calls are expected', function(done){
+    this.timeout(20 * 1000);
+    // disabling debug to avoid console flooding
+    debug = function(){};
+
+    for(var i = 1; i <= 1000; i++)
+    (function(i){
+      webHooks.trigger('hook2', {i: i});
+    })(i);
+
+    setInterval(function(){
+      console.log('Got', LOADTEST+'/2000', 'REST calls');
+      if (LOADTEST === 2000) done();
+    }, 500);
+
+  });
 
 
 });
-
-// - basic server
-// - create a webhook istance
-// - check wether the json db file exists or not
-// - put a webHook
-// - add a new URL to the existing webHook
-// - call the getWebHook method
-// - fire the webHook with no body or headers
-// - fire the webHook with custom body.
-// - fire the webHook with custom headers.
-// - fire the webHook with both body and headers.
-// - delete a single webHook URL.
-// - fire the webHook and make sure just one URL is called.
-// - delete the entire webHook.
-// - fire the webHook and make sure no request is dispatched at all.
-// - create a new webHook.
-// - fire the webHook 100 times. Expected 100 REST calls.
