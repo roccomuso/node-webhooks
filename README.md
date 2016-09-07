@@ -26,7 +26,7 @@ To launch the example and enable debug: <code>DEBUG=node-webhooks node example.j
 ```javascript
 
 // Initialize WebHooks module.
-var WebHooks = require('./index');
+var WebHooks = require('node-webhooks');
 
 
 var webHooks = new WebHooks({
