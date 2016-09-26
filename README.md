@@ -18,7 +18,7 @@ When a webHook is triggered it will send an HTTPS POST request to the attached U
 
 ## Debug
 
-This module makes use of the popular [debug](https://github.com/visionmedia/debug) package.Use the env variable to enable debug: <code>DEBUG=node-webhooks</code>.
+This module makes use of the popular [debug](https://github.com/visionmedia/debug) package. Use the env variable to enable debug: <code>DEBUG=node-webhooks</code>.
 To launch the example and enable debug: <code>DEBUG=node-webhooks node example.js</code>
 
 ## Usage
@@ -58,6 +58,38 @@ webHooks.trigger('shortname1', {data: 123});
 webHooks.trigger('shortname2', {data: 123456}, {header: 'header'}); // payload will be sent as POST request with JSON body (Content-Type: application/json) and custom header
 
 ```
+
+## Available events
+
+We're using an event emitter library to expose request information on webHook trigger.
+
+```javascript
+var webHooks = new WebHooks({
+    db: WEBHOOKS_DB,
+    DEBUG: true
+});
+
+var emitter = webHooks.getEmitter();
+
+emitter.on('*.success', function (shortname, statusCode, body) {
+    console.log('Success on trigger webHook' + shortname + 'with status code', statusCode, 'and body', body);
+});
+
+emitter.on('*.failure', function (shortname, statusCode, body) {
+    console.error('Error on trigger webHook' + shortname + 'with status code', statusCode, 'and body', body);
+});
+```
+
+This makes possible checking if a webHook trigger was successful or not getting request information such as status code or response body.
+
+The format for the events is built as `eventName.result`. The choosen library `eventemitter2` provides a lot of freedom for listening events. For example:
+
+- `eventName.success`
+- `eventName.failure`
+- `eventName.*`
+- `*.success`
+- `*.*`
+
 
 ## API examples
 
