@@ -103,15 +103,15 @@ function _getRequestFunction(self, url){
 			  },
 			  function (error, response, body) {
 				  	var statusCode = response ? response.statusCode : null;
-				  	var body = response ? response.body : null;
+				  	body = body ? body : null;
+						debug('Request sent - Server responded with:', statusCode, body);
 
 				    if ((error || statusCode !== 200 )) {
 						self.emitter.emit(shortname + '.failure', shortname, statusCode, body);
 						return debug('HTTP failed: '+ error);
-					};
+					}
 
 				  	self.emitter.emit(shortname + '.success', shortname, statusCode, body);
-					debug('Request sent - Server responded with:', body);
 			  }
 			);
 
