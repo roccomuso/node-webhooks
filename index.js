@@ -20,8 +20,7 @@ var jsonfile = require('jsonfile');
 var fs = require('fs');
 var crypto = require('crypto');
 var request = require('request');
-var events = require('events');
-var eventEmitter = new events.EventEmitter();
+var events = require('eventemitter2');
 
 // will contain all the functions. We need to store them to be able to remove the listener callbacks
 var _functions = {};
@@ -32,6 +31,8 @@ function WebHooks(options){
 	if (typeof options.db !== 'string') throw new TypeError('db Must be a String path');
 
 	this.db = options.db;
+
+	this.emitter = new events.EventEmitter2({ wildcard: true });
 
 	var self = this;
 	// sync loading:
@@ -72,7 +73,7 @@ function _setListeners(self){
 		    urls.forEach(function(url){
 		    	var enc_url = crypto.createHash('md5').update(url).digest('hex');
 		    	_functions[enc_url] = _getRequestFunction(self, url);
-		    	eventEmitter.on(key, _functions[enc_url]);
+		    	self.emitter.on(key, _functions[enc_url]);
 		    });
 		}
 	}catch(e){
@@ -87,7 +88,7 @@ function _setListeners(self){
 
 function _getRequestFunction(self, url){
 	// return the function then called by the event listener.
-	var func = function(json_data, headers_data){ // argument required when eventEmitter.emit()
+	var func = function(shortname, json_data, headers_data){ // argument required when eventEmitter.emit()
 			var obj = {'Content-Type': 'application/json'};
 			var headers = headers_data ? _.merge(obj, headers_data) : obj;
 
@@ -101,7 +102,15 @@ function _getRequestFunction(self, url){
 			    body: JSON.stringify(json_data)
 			  },
 			  function (error, response, body) {
-				    if ((error || response.statusCode !== 200 )) return debug('HTTP failed: '+ error);
+				  	var statusCode = response ? response.statusCode : null;
+				  	var body = response ? response.body : null;
+
+				    if ((error || statusCode !== 200 )) {
+						self.emitter.emit(shortname + '.failure', shortname, statusCode, body);
+						return debug('HTTP failed: '+ error);
+					};
+
+				  	self.emitter.emit(shortname + '.success', shortname, statusCode, body);
 					debug('Request sent - Server responded with:', body);
 			  }
 			);
@@ -115,7 +124,7 @@ function _getRequestFunction(self, url){
 
 WebHooks.prototype.trigger = function(shortname, json_data, headers_data) {
 	// trigger a webHook
-	eventEmitter.emit(shortname, json_data, headers_data);
+	this.emitter.emit(shortname, shortname, json_data, headers_data);
 };
 
 WebHooks.prototype.add = function(shortname, url) { // url is required
@@ -140,7 +149,7 @@ WebHooks.prototype.add = function(shortname, url) { // url is required
 						obj[shortname].push(url);
 						var enc_url = crypto.createHash('md5').update(url).digest('hex');
 				    	_functions[enc_url] = _getRequestFunction(self, url);
-				    	eventEmitter.on(shortname, _functions[enc_url]);
+				    	self.emitter.on(shortname, _functions[enc_url]);
 				    	modified = true;
 					}
 				}else{
@@ -149,7 +158,7 @@ WebHooks.prototype.add = function(shortname, url) { // url is required
 					obj[shortname] = [url];
 					var enc_url = crypto.createHash('md5').update(url).digest('hex');
 				    _functions[enc_url] = _getRequestFunction(self, url);
-				    eventEmitter.on(shortname, _functions[enc_url]);
+				    self.emitter.on(shortname, _functions[enc_url]);
 				    modified = true;
 				}
 
@@ -184,7 +193,7 @@ WebHooks.prototype.remove = function(shortname, url) { // url is optional
 					if (done){
 						// remove only the specified url
 						var url_key = crypto.createHash('md5').update(url).digest('hex');
-						eventEmitter.removeListener(shortname, _functions[url_key]);
+						self.emitter.removeListener(shortname, _functions[url_key]);
 						delete _functions[url_key];
 						resolve(true);
 					}
@@ -193,7 +202,7 @@ WebHooks.prototype.remove = function(shortname, url) { // url is optional
 
 			}else{
 				// remove every event listener attached to the webHook shortname.
-				eventEmitter.removeAllListeners(shortname);
+				self.emitter.removeAllListeners(shortname);
 
 				// delete all the callbacks in _functions for the specified shortname. Let's loop over the url taken from the DB.
 				var obj = jsonfile.readFileSync(self.db);
@@ -308,6 +317,10 @@ WebHooks.prototype.getWebHook = function(shortname) {
 
 WebHooks.prototype.get_functions = function(){
 	return _functions;
+};
+
+WebHooks.prototype.getEmitter = function(){
+	return this.emitter;
 };
 
 module.exports = WebHooks;
