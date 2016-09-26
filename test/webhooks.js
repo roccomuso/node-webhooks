@@ -7,6 +7,7 @@ var fs = require('fs');
 var path = require('path');
 var WebHooks = require('../index');
 var webHooks;
+var emitter;
 var DB_FILE = path.join(__dirname, './webHooksDB.json'); // json file that store webhook URLs
 
 // IMPLEMENTED TESTS:
@@ -51,7 +52,11 @@ function handleRequest(request, response) {
         };
         if (request.url.indexOf('/2/') !== -1) LOADTEST++;
         debug('body:', body);
-        response.end('It Works!! Path Hit: ' + request.url);
+        if (request.url.indexOf('/fail') !== -1)
+          response.writeHead(400, {'Content-Type': 'application/json'});
+        else
+          response.writeHead(200, {'Content-Type': 'application/json'});
+        response.end('Path Hit: ' + request.url);
 
     });
 
@@ -69,12 +74,6 @@ describe('Tests >', function() {
             done();
         });
 
-    });
-    after(function(done) {
-        // stop the server
-        server.close(function() {
-            done();
-        });
     });
 
     it('eventually delete old DB', function(done) {
@@ -281,9 +280,9 @@ describe('Tests >', function() {
 
 
     it('should fire the webHook 1000 times and 2000 REST calls are expected', function(done) {
-        this.timeout(20 * 1000);
+        this.timeout(25 * 1000);
         // disabling debug to avoid console flooding
-        debug = function() {};
+        //debug = function() {};
 
         for (var i = 1; i <= 1000; i++)
             (function(i) {
@@ -292,11 +291,174 @@ describe('Tests >', function() {
                 });
             })(i);
 
-        setInterval(function() {
+        var loop = setInterval(function() {
             console.log('Got', LOADTEST + '/2000', 'REST calls');
-            if (LOADTEST === 2000) done();
+            if (LOADTEST === 2000){
+              clearInterval(loop);
+              done();
+            }
         }, 500);
 
+    });
+
+
+});
+
+describe('Events >', function(){
+
+    it('Should get the emitter', function(done){
+        emitter = webHooks.getEmitter(); // get the emitter
+        should.exist(emitter);
+        done();
+    });
+
+    it('Should add a new Hook #3', function(done){
+        webHooks.add('hook3', URI + '/3/aaa').then(function() {
+            done();
+        }).catch(function(err) {
+            throw new Error(err);
+        });
+    });
+
+    it('Should catch a specific success event', function(done){
+        emitter.on('hook3.failure', function(shortname, stCode, body){
+          debug('hook3.failure:', shortname, stCode, body);
+          done('hook3.failure error: wrong event catched.');
+        });
+        emitter.on('hook3.success', function(shortname, statusCode, body){
+          debug('hook3.success:', {shortname: shortname, statusCode: statusCode, body: body});
+          should.exist(shortname);
+          should.exist(statusCode);
+          should.exist(body);
+          shortname.should.equal('hook3');
+          statusCode.should.equal(200);
+          body.should.equal('Path Hit: /3/aaa'); // body response from the server
+          done();
+        });
+        // fire the hook
+          webHooks.trigger('hook3', {
+              header1: 'pippo'
+          }, {
+              prop1 : 'paperino'
+          });
+
+    });
+
+    it('Should remove the specific event listener and fire the hook', function(done){
+        this.timeout(4000);
+        emitter.removeAllListeners('hook3');
+        emitter.on('hook3.success', function(s, st, body){
+          debug('hook3.success error:', s, st, body);
+          done('error: removed listener should not be called!');
+        });
+        emitter.removeAllListeners('hook3');
+        webHooks.trigger('hook3');
+        setTimeout(function(){
+          done();
+        }, 2000);
+    });
+
+    it('add a failing webHook called hook4', function(done){
+      webHooks.add('hook4', URI + '/4/fail').then(function() {
+          done();
+      }).catch(function(err) {
+          throw new Error(err);
+      });
+    });
+
+    it('Should catch a specific failure event', function(done){
+        emitter.on('hook4.success', function(){
+          done('error: wrong event catched!');
+        });
+        emitter.on('hook4.failure', function(shortname, statusCode, body){
+          should.exist(shortname);
+          should.exist(statusCode);
+          should.exist(body);
+          shortname.should.equal('hook4');
+          statusCode.should.equal(400);
+          body.should.equal('Path Hit: /4/fail');
+          done();
+        });
+        // fire the hook
+        webHooks.trigger('hook4', {
+            header1: 'foo'
+        }, {
+            prop2 : 'peterpan'
+        });
+    });
+
+    it('Should add new hooks for multiple events catch', function(done){
+        webHooks.add('hook5', URI + '/5/success').then(function() {
+          webHooks.add('hook6', URI + '/6/success').then(function() {
+            webHooks.add('hook7', URI + '/7/fail').then(function() {
+              webHooks.add('hook8', URI + '/8/fail').then(function() {
+                  done();
+              });
+            });
+          });
+        }).catch(function(err) {
+            throw new Error(err);
+        });
+    });
+
+    it('Should catch all the success events', function(done){
+        var got = 0;
+        emitter.on('*.failure', function(shortname, stCode, body){
+          debug('error *.failure:', shortname, stCode, body);
+          done('*.failure error: wrong event catched.');
+        });
+        emitter.on('*.success', function(shortname, statusCode, body){
+          debug('captured events:', got);
+          should.exist(shortname);
+          should.exist(statusCode);
+          should.exist(body);
+          expect(shortname).to.be.oneOf(['hook5','hook6']);
+          statusCode.should.equal(200);
+          expect(body).to.be.oneOf(['Path Hit: /5/success', 'Path Hit: /6/success']);
+          ++got;
+          if (got === 2){
+            emitter.removeAllListeners('*.success');
+            emitter.removeAllListeners('*.failure');
+            done();
+          }
+        });
+        // fire the hooks
+        webHooks.trigger('hook5');
+        webHooks.trigger('hook6');
+    });
+
+    it('Should catch all the failure events', function(done){
+        var got = 0;
+        emitter.on('*.success', function(shortname, stCode, body){
+          debug('error *.success:', shortname, stCode, body);
+          done('*.success error: wrong event catched.');
+        });
+        emitter.on('*.failure', function(shortname, statusCode, body){
+          debug('captured events:', got);
+          should.exist(shortname);
+          should.exist(statusCode);
+          should.exist(body);
+          expect(shortname).to.be.oneOf(['hook7','hook8']);
+          statusCode.should.equal(400);
+          expect(body).to.be.oneOf(['Path Hit: /7/fail', 'Path Hit: /8/fail']);
+          ++got;
+          if (got === 2){
+            emitter.removeAllListeners('*.success');
+            emitter.removeAllListeners('*.failure');
+            done();
+          }
+        });
+        // fire the hooks
+        webHooks.trigger('hook7');
+        webHooks.trigger('hook8');
+    });
+
+
+    after(function(done) {
+        // stop the server
+        server.close(function() {
+            done();
+        });
     });
 
 
