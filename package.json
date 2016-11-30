@@ -4,7 +4,9 @@
   "description": "Create and trigger your own webHooks",
   "main": "index.js",
   "scripts": {
-    "test": "./node_modules/.bin/mocha --timeout=5000 test/**/*.js"
+    "test": "npm run ci_test && npm run security_check",
+    "ci_test": "./node_modules/.bin/mocha --timeout=5000 test/**/*.js",
+    "security_check": "nsp check"
   },
   "repository": {
     "type": "git",
@@ -32,6 +34,7 @@
   },
   "devDependencies": {
     "chai": "3.5.0",
-    "mocha": "1.21.4"
+    "mocha": "1.21.4",
+    "nsp": "^2.6.2"
   }
 }
