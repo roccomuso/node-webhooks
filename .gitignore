@@ -1,0 +1,4 @@
+node_modules/
+/webHooksDB.json
+test/webHooksDB.json
+.idea
