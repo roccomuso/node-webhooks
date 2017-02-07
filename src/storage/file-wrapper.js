@@ -15,7 +15,7 @@ class ImplementationOf {
       this._readOnce = true
       cb(obj && name in obj ? obj[name] : {}, false)
     } else {
-      cb(this._cache[name] || null)
+      cb(this._cache[name] || {})
     }
   }
 
@@ -45,14 +45,14 @@ var setup = function (options) {
       jsonfile.readFileSync(options.filename)
       resolve(new ImplementationOf(options.filename))
     } catch (e) {
-      debug(e)
-            // DB file not found, initialize it
+      // DB file not found, initialize it
       if (e.hasOwnProperty('code')) {
         if (e.code === 'ENOENT') {
-                    // file not found, init DB:
+          // file not found, init DB:
           debug('webHook DB init')
-          jsonfile.writeFileSync(options.filename, {}, {spaces: 2})
-          resolve(new ImplementationOf(options.filename))
+          jsonfile.writeFile(options.filename, {}, {spaces: 2}, function () {
+            resolve(new ImplementationOf(options.filename))
+          })
         } else {
           console.error(e)
         }

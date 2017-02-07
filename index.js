@@ -55,9 +55,7 @@ function WebHooks (options) {
   }
 
   self.getDictionary = function (cb) {
-    this.storage.get('dictionary', function (reply, err) {
-      cb(reply, err)
-    })
+    this.storage.get('dictionary', cb)
   }.bind(self)
 }
 
@@ -88,9 +86,9 @@ function bindUriEvents (key, urls) {
   urls.forEach(function (url) {
     var encUrl = crypto.createHash('md5').update(url).digest('hex')
     _functions[encUrl] = _getRequestFunction(self, url)
-    self.emitter.on(key, function () {
-      debug(key + ' has been catched')
-      _functions[encUrl]()
+    self.emitter.on(key, function (a, b, c) {
+      debug(key + ' has been catched', a, b, c)
+      _functions[encUrl](a, b, c)
     })
   })
 }
@@ -100,7 +98,7 @@ function _getRequestFunction (self, url, method) {
     var obj = {'Content-Type': 'application/json'}
     var headers = headersData ? _.merge(obj, headersData) : obj
 
-    debug(' Request to:', url)
+    debug(' Request to:', url, headersData)
         // POST request to the instantiated URL with custom headers if provided
     request({
       method: method || 'POST',
@@ -222,36 +220,39 @@ WebHooks.prototype.remove = function (shortname, url) { // url is optional
         _removeUrlFromShortname(self, shortname, url, function (err, done) {
           if (err) return reject(err)
           if (done) {
-                        // remove only the specified url
+            // remove only the specified url
             var urlKey = crypto.createHash('md5').update(url).digest('hex')
             self.emitter.removeListener(shortname, _functions[urlKey])
             delete _functions[urlKey]
             resolve(true)
-          } else resolve(false)
+          } else {
+            resolve(false)
+          }
         })
       } else {
                 // remove every event listener attached to the webHook shortname.
         self.emitter.removeAllListeners(shortname)
 
                 // delete all the callbacks in _functions for the specified shortname. Let's loop over the url taken from the DB.
-        var obj = {} // jsonfile.readFileSync(self.db)
+        self.getDictionary(function (obj) {
+          debug(obj)
+          if (obj.hasOwnProperty(shortname)) {
+            var urls = obj[shortname]
+            urls.forEach(function (url) {
+              var urlKey = crypto.createHash('md5').update(url).digest('hex')
+              delete _functions[urlKey]
+            })
 
-        if (obj.hasOwnProperty(shortname)) {
-          var urls = obj[shortname]
-          urls.forEach(function (url) {
-            var urlKey = crypto.createHash('md5').update(url).digest('hex')
-            delete _functions[urlKey]
-          })
-
-                    // save it back to the DB
-          _removeShortname(self, shortname, function (err) {
-            if (err) return reject(err)
-            resolve(true)
-          })
-        } else {
-          debug('webHook doesn\'t exists')
-          resolve(false)
-        }
+                // save it back to the DB
+            _removeShortname(self, shortname, function (err) {
+              if (err) return reject(err)
+              resolve(true)
+            })
+          } else {
+            debug('webHook doesn\'t exists')
+            resolve(false)
+          }
+        })
       }
     } catch (e) {
       reject(e)
@@ -261,20 +262,23 @@ WebHooks.prototype.remove = function (shortname, url) { // url is optional
 
 function _removeUrlFromShortname (self, shortname, url, callback) {
   try {
-    var obj = {}// jsonfile.readFileSync(self.db)
-
-    var deleted = false
-    var len = obj[shortname].length
-    if (obj[shortname].indexOf(url) !== -1) {
-      obj[shortname].splice(obj[shortname].indexOf(url), 1)
-    }
-    if (obj[shortname].length !== len) deleted = true
+    self.getDictionary(function (obj) {
+      var deleted = false
+      var len = obj[shortname].length
+      if (obj[shortname].indexOf(url) !== -1) {
+        obj[shortname].splice(obj[shortname].indexOf(url), 1)
+      }
+      if (obj[shortname].length !== len) {
+        deleted = true
+      }
         // save it back to the DB
-    if (deleted) {
-            // jsonfile.writeFileSync(self.db, obj)
-      debug('url removed from existing shortname')
-      callback(undefined, deleted)
-    } else callback(undefined, deleted)
+      if (deleted) {
+        self.storage.set('dictionary', obj, function () {
+          debug('url removed from existing shortname')
+          callback(undefined, deleted)
+        })
+      } else callback(undefined, deleted)
+    })
   } catch (e) {
     callback(e, undefined)
   }
@@ -282,12 +286,14 @@ function _removeUrlFromShortname (self, shortname, url, callback) {
 
 function _removeShortname (self, shortname, callback) {
   try {
-    var obj = {}// jsonfile.readFileSync(self.db)
-    delete obj[shortname]
+    self.getDictionary(function (obj) {
+      delete obj[shortname]
         // save it back to the DB
-        // jsonfile.writeFileSync(self.db, obj)
-    debug('whole shortname urls removed')
-    callback(undefined)
+      self.storage.set('dictionary', obj, function () {
+        debug('whole shortname urls removed')
+        callback(undefined)
+      })
+    })
   } catch (e) {
     callback(e)
   }
@@ -313,7 +319,7 @@ WebHooks.prototype.getWebHook = function (shortname, callback) {
   var self = this
   self.getDB().then(function (db, err) {
     const obj = db[shortname] || null
-    callback(obj)
+    callback && callback(obj)
   })
 }
 
