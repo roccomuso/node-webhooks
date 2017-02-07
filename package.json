@@ -4,9 +4,10 @@
   "description": "Create and trigger your own webHooks",
   "main": "index.js",
   "scripts": {
+    "example": "node example.js",
     "test": "npm run std && npm run ci_test && npm run security_check",
     "ci_test": "./node_modules/.bin/mocha --timeout=5000 test/**/*.js",
-    "std" : "standard",
+    "std": "standard",
     "security_check": "nsp check"
   },
   "repository": {
@@ -27,10 +28,12 @@
   "homepage": "https://github.com/roccomuso/node-webhooks#readme",
   "dependencies": {
     "bluebird": "^3.4.5",
+    "co": "^4.6.0",
     "debug": "^2.2.0",
     "eventemitter2": "^2.1.3",
     "jsonfile": "^2.2.3",
     "lodash": "^4.15.0",
+    "redis": "^2.6.5",
     "request": "^2.69.0"
   },
   "devDependencies": {
@@ -40,6 +43,8 @@
     "standard": "^8.6.0"
   },
   "standard": {
-    "env": ["mocha"]
+    "env": [
+      "mocha"
+    ]
   }
 }

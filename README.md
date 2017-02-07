@@ -1,4 +1,4 @@
-# node-webhooks [![Build Status](https://travis-ci.org/roccomuso/node-webhooks.svg?branch=master)](https://travis-ci.org/roccomuso/node-webhooks) [![NPM Version](https://img.shields.io/npm/v/node-webhooks.svg)](https://www.npmjs.com/package/node-webhooks)
+# node-webhooks [![Build Status](https://travis-ci.org/oscarnevarezleal/node-webhooks.svg?branch=master)](https://travis-ci.org/oscarnevarezleal/node-webhooks) [![NPM Version](https://img.shields.io/npm/v/node-webhooks.svg)](https://www.npmjs.com/package/node-webhooks)
 
 
 [![Standard - JavaScript Style Guide](https://cdn.rawgit.com/feross/standard/master/badge.svg)](https://github.com/feross/standard)
@@ -27,37 +27,64 @@ To launch the example and enable debug: <code>DEBUG=node-webhooks node example.j
 ```javascript
 
 // Initialize WebHooks module.
-var WebHooks = require('node-webhooks')
+var WebHooks = require('./index');
+var debug = require('debug')('example');
 
-
-var webHooks = new WebHooks({
-    db: './webHooksDB.json', // json file that store webhook URLs
-})
-
-// sync instantation - add a new webhook called 'shortname1'
-webHooks.add('shortname1', 'http://127.0.0.1:9000/prova/other_url').then(function(){
-	// done
-}).catch(function(err){
-	console.log(err)
-})
-
-// add another webHook
-webHooks.add('shortname2', 'http://127.0.0.1:9000/prova2/').then(function(){
-	// done
-}).catch(function(err){
-	console.log(err)
+const redisConfig = {
+    preffix: 'whe_',
+    host: '192.168.99.100',
+    port: '32772'
+};
+//const redisStorage = require('./src/storage').get('redis', redisConfig);
+var fileConfig = {
+    filename: 'webHooksDB.json'
+};
+const fileStorage = require('./src/storage').get('file', fileConfig);
+const webHooks = new WebHooks({
+    storage: fileStorage
 });
 
-// remove a single url attached to the given shortname
-// webHooks.remove('shortname3', 'http://127.0.0.1:9000/query/').catch(function(err){console.error(err);})
+webHooks.ready().then(function () {
+    'use strict';
 
-// if no url is provided, remove all the urls attached to the given shortname
-// webHooks.remove('shortname3').catch(function(err){console.error(err);})
+    debug('Webhooks is ready');
+    // sync instantation - add a new webhook called 'shortname1'
+    webHooks.add('shortname_x', 'http://stackoverflow.com/?q=1').then(function () {
+        // done
+    }).catch(function (err) {
+        debug(err)
+    })
 
-// trigger a specific webHook
-webHooks.trigger('shortname1', {data: 123})
-webHooks.trigger('shortname2', {data: 123456}, {header: 'header'}) // payload will be sent as POST request with JSON body (Content-Type: application/json) and custom header
+    // add another webHook
+    webHooks.add('shortname_y', 'http://stackoverflow.com/?q=2').then(function () {
+        // done
+    }).catch(function (err) {
+        debug(err)
+    });
 
+    webHooks.multi([
+        {name: 'shortname01', url: 'http://stackoverflow.com/?q=01'},
+        {name: 'shortname02', url: 'http://stackoverflow.com/?q=02'},
+        {name: 'shortname03', url: 'http://stackoverflow.com/?q=03'},
+        {name: 'shortname04', url: 'http://stackoverflow.com/?q=04'}
+    ]).then(function (data) {
+        //debug('Multi finished', data);
+
+        webHooks.exists('shortname04', function (exists) {
+            debug('shortname04 existence is ' + exists);
+        });
+
+        webHooks.exists('shortname05', function (exists) {
+            debug('shortname05 existence is ' + exists);
+        });
+
+        webHooks.trigger('shortname01', {data: 123456}, {header: 'header'}) // payload will be sent as POST request with JSON body (Content-Type: application/json) and custom header
+        webHooks.trigger('shortname02', {data: 123456}, {header: 'header'}) // payload will be sent as POST request with JSON body (Content-Type: application/json) and custom header
+        webHooks.trigger('shortname03', {data: 123456}, {header: 'header'}) // payload will be sent as POST request with JSON body (Content-Type: application/json) and custom header
+        webHooks.trigger('shortname04', {data: 123456}, {header: 'header'}) // payload will be sent as POST request with JSON body (Content-Type: application/json) and custom header
+
+    });
+});
 ```
 
 ## Available events
@@ -66,7 +93,7 @@ We're using an event emitter library to expose request information on webHook tr
 
 ```javascript
 var webHooks = new WebHooks({
-    db: WEBHOOKS_DB,
+    storage: fileStorage,
     DEBUG: true
 })
 
@@ -121,3 +148,4 @@ Trigger a webHook. It requires a JSON body that will be turned over to the webHo
 ### Author
 
 Rocco Musolino - hackerstribe.com
+Oscar Nevarez Leal
