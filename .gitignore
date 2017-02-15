@@ -1,3 +1,4 @@
 node_modules/
+coverage/
 /webHooksDB.json
 test/webHooksDB.json
