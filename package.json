@@ -8,6 +8,7 @@
     "ci_test": "./node_modules/.bin/mocha --timeout=5000 test/**/*.js",
     "std": "standard",
     "cover": "istanbul cover _mocha",
+    "coveralls": "npm run cover -- --report lcovonly && cat ./coverage/lcov.info | coveralls",
     "security_check": "nsp check"
   },
   "repository": {
@@ -36,8 +37,10 @@
   },
   "devDependencies": {
     "chai": "3.5.0",
+    "coveralls": "^2.11.16",
     "istanbul": "^0.4.5",
     "mocha": "1.21.4",
+    "mocha-lcov-reporter": "^1.2.0",
     "nsp": "^2.6.2",
     "standard": "^8.6.0"
   },
