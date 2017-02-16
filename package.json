@@ -1,13 +1,12 @@
 {
   "name": "node-webhooks",
-  "version": "1.1.31",
+  "version": "1.1.32",
   "description": "Create and trigger your own webHooks",
   "main": "index.js",
   "scripts": {
-    "test": "npm run std && npm run ci_test && npm run cover && npm run security_check",
-    "ci_test": "./node_modules/.bin/mocha --timeout=5000 test/**/*.js",
+    "test": "npm run std && npm run cover && npm run security_check",
     "std": "standard",
-    "cover": "istanbul cover _mocha",
+    "cover": "istanbul cover _mocha -- --timeout=5000 test/**/*.js",
     "coveralls": "npm run cover -- --report lcovonly && cat ./coverage/lcov.info | coveralls",
     "security_check": "nsp check"
   },
