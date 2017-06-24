@@ -32,6 +32,15 @@ function WebHooks (options) {
 
   this.db = options.db
 
+  if (options.hasOwnProperty('httpSuccessCodes')) {
+    if (!(options.httpSuccessCodes instanceof Array)) throw new TypeError('httpSuccessCodes must be an array')
+    if (options.httpSuccessCodes.length <= 0) throw new TypeError('httpSuccessCodes must contain at least one http status code')
+
+    this.httpSuccessCodes = options.httpSuccessCodes
+  } else {
+    this.httpSuccessCodes = [200]
+  }
+
   this.emitter = new events.EventEmitter2({ wildcard: true })
 
   var self = this
@@ -106,7 +115,7 @@ function _getRequestFunction (self, url) {
       body = body || null
       debug('Request sent - Server responded with:', statusCode, body)
 
-      if ((error || statusCode !== 200)) {
+      if ((error || self.httpSuccessCodes.indexOf(statusCode) === -1)) {
         self.emitter.emit(shortname + '.failure', shortname, statusCode, body)
         return debug('HTTP failed: ' + error)
       }
