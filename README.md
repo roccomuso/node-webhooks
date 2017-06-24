@@ -121,4 +121,4 @@ Trigger a webHook. It requires a JSON body that will be turned over to the webHo
 
 ### Author
 
-Rocco Musolino - hackerstribe.com
+Rocco Musolino - [@roccomuso](https://twitter.com/roccomuso)
