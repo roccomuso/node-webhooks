@@ -133,6 +133,37 @@ describe('Tests >', function () {
     }
   })
 
+  it('httpSuccessCodes is 200 by default', function (done) {
+    expect(webHooks.httpSuccessCodes).to.deep.equal([200])
+    done()
+  })
+
+  it('httpSuccessCodes accepts array only', function (done) {
+    try {
+      var a = new WebHooks({
+        db: DB_FILE,
+        httpSuccessCodes: null
+      })
+      done(a + ' should not be possible')
+    } catch (e) {
+      expect(e.message).to.equal('httpSuccessCodes must be an array')
+      done()
+    }
+  })
+
+  it('httpSuccessCodes accepts not empty array only', function (done) {
+    try {
+      var b = new WebHooks({
+        db: DB_FILE,
+        httpSuccessCodes: []
+      })
+      done(b + ' should not be possible')
+    } catch (e) {
+      expect(e.message).to.equal('httpSuccessCodes must contain at least one http status code')
+      done()
+    }
+  })
+
   it('getDB() file', function (done) {
     webHooks.getDB().then(function (db) {
       should.exist(db)
