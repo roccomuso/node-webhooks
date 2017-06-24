@@ -94,6 +94,54 @@ describe('Tests >', function () {
     })
   })
 
+  it('add: shortname required', function (done) {
+    try {
+      webHooks.add(null, URI + '/1/aaa').then(function () {
+        done('Error expected')
+      }).catch(function (err) {
+        throw new Error(err)
+      })
+    } catch (e) {
+      expect(e.message).to.equal('shortname required!')
+      done()
+    }
+  })
+
+  it('add: Url required', function (done) {
+    try {
+      webHooks.add('hei', null).then(function () {
+        done('Error expected')
+      }).catch(function (err) {
+        throw new Error(err)
+      })
+    } catch (e) {
+      expect(e.message).to.equal('Url must be a string')
+      done()
+    }
+  })
+
+  it('remove: shortname required', function (done) {
+    try {
+      webHooks.remove(null, 'hei').then(function () {
+        done('Error expected')
+      }).catch(function (err) {
+        throw new Error(err)
+      })
+    } catch (e) {
+      expect(e.message).to.equal('shortname required!')
+      done()
+    }
+  })
+
+  it('getDB() file', function (done) {
+    webHooks.getDB().then(function (db) {
+      should.exist(db)
+      done()
+    }).catch(function (e) {
+      throw e
+    })
+  })
+
   it('add a webHook called hook1', function (done) {
     webHooks.add('hook1', URI + '/1/aaa').then(function () {
       done()
@@ -164,9 +212,9 @@ describe('Tests >', function () {
       debug('OUTCOME-3:', OUTCOMES)
       should.exist(OUTCOMES['/1/aaa'])
       should.exist(OUTCOMES['/1/bbb'])
-      expect(OUTCOMES['/1/aaa']).to.have.deep.property('headers.hero').equal('hulk')
+      expect(OUTCOMES['/1/aaa']).to.have.nested.property('headers.hero').equal('hulk')
       expect(OUTCOMES['/1/aaa']).to.have.property('body').equal('{}')
-      expect(OUTCOMES['/1/bbb']).to.have.deep.property('headers.hero').equal('hulk')
+      expect(OUTCOMES['/1/bbb']).to.have.nested.property('headers.hero').equal('hulk')
       expect(OUTCOMES['/1/bbb']).to.have.property('body').equal('{}')
       done()
     }, 1000)
@@ -184,9 +232,9 @@ describe('Tests >', function () {
       debug('OUTCOME-3:', OUTCOMES)
       should.exist(OUTCOMES['/1/aaa'])
       should.exist(OUTCOMES['/1/bbb'])
-      expect(OUTCOMES['/1/aaa']).to.have.deep.property('headers.hero').equal('iron-man')
+      expect(OUTCOMES['/1/aaa']).to.have.nested.property('headers.hero').equal('iron-man')
       expect(OUTCOMES['/1/aaa']).to.have.property('body').equal('{"hello":"rocco"}')
-      expect(OUTCOMES['/1/bbb']).to.have.deep.property('headers.hero').equal('iron-man')
+      expect(OUTCOMES['/1/bbb']).to.have.nested.property('headers.hero').equal('iron-man')
       expect(OUTCOMES['/1/bbb']).to.have.property('body').equal('{"hello":"rocco"}')
       done()
     }, 1000)
@@ -300,6 +348,11 @@ describe('Events >', function () {
   it('Should get the emitter', function (done) {
     emitter = webHooks.getEmitter() // get the emitter
     should.exist(emitter)
+    done()
+  })
+
+  it('Should get all the listeners func.', function (done) {
+    should.exist(webHooks.getListeners()) // get the callbacks obj
     done()
   })
 

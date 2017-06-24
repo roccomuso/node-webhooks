@@ -183,7 +183,9 @@ WebHooks.prototype.add = function (shortname, url) { // url is required
 WebHooks.prototype.remove = function (shortname, url) { // url is optional
   // if url exists remove only the url attached to the selected webHook.
   // else remove the webHook and all the attached URLs.
-  if (typeof shortname === 'undefined') throw new TypeError('shortname required!')
+  if (typeof shortname !== 'string') {
+    throw new TypeError('shortname required!')
+  }
   var self = this
   return new Promise(function (resolve, reject) {
     // Basically removeListener will look up the given function by reference, if it found that function it will remove it from the event hander.
@@ -244,10 +246,10 @@ function _removeUrlFromShortname (self, shortname, url, callback) {
     if (deleted) {
       jsonfile.writeFileSync(self.db, obj)
       debug('url removed from existing shortname')
-      callback(undefined, deleted)
-    } else callback(undefined, deleted)
+      callback(null, deleted)
+    } else callback(null, deleted)
   } catch (e) {
-    callback(e, undefined)
+    callback(e, null)
   }
 }
 
@@ -258,7 +260,7 @@ function _removeShortname (self, shortname, callback) {
     // save it back to the DB
     jsonfile.writeFileSync(self.db, obj)
     debug('whole shortname urls removed')
-    callback(undefined)
+    callback(null)
   } catch (e) {
     callback(e)
   }
@@ -271,14 +273,9 @@ WebHooks.prototype.getDB = function () {
   return new Promise(function (resolve, reject) {
     jsonfile.readFile(self.db, function (err, obj) {
       if (err) {
-        if (err.code === 'ENOENT') { // file not found
-          reject('file not found')
-        } else {
-          reject(err)
-        }
+        reject(err) // file not found
       } else {
-        // file exists
-        resolve(obj)
+        resolve(obj) // file exists
       }
     })
   })
@@ -291,11 +288,7 @@ WebHooks.prototype.getWebHook = function (shortname) {
   return new Promise(function (resolve, reject) {
     jsonfile.readFile(self.db, function (err, obj) {
       if (err) {
-        if (err.code === 'ENOENT') { // file not found
-          reject('file not found')
-        } else {
-          reject(err)
-        }
+        reject(err) // file not found
       } else {
         // file exists
         if (obj[shortname]) {
@@ -308,7 +301,7 @@ WebHooks.prototype.getWebHook = function (shortname) {
   })
 }
 
-WebHooks.prototype.get_functions = function () {
+WebHooks.prototype.getListeners = function () {
   return _functions
 }
 
