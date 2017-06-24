@@ -1,6 +1,6 @@
 {
   "name": "node-webhooks",
-  "version": "1.1.4",
+  "version": "1.2.4",
   "description": "Create and trigger your own webHooks",
   "main": "index.js",
   "scripts": {
