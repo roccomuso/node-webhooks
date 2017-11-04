@@ -1,10 +1,10 @@
 language: node_js
 
 node_js:
-  - "0.12"
-  - "iojs-v1.8"
   - "4.4.7"
   - "6.2.1"
+  - "7.10"
+  - "8.4"
 
 cache:
   directories:
