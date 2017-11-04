@@ -28,9 +28,14 @@ var _functions = {}
 // WebHooks Class
 function WebHooks (options) {
   if (typeof options !== 'object') throw new TypeError('Expected an Object')
-  if (typeof options.db !== 'string') throw new TypeError('db Must be a String path')
+  if (typeof options.db !== 'string' && typeof options.db !== 'object') {
+    throw new TypeError('db Must be a String path or an object')
+  }
 
   this.db = options.db
+
+  // If webhooks data is kept in memory, we skip all disk operations
+  this.isMemDb = typeof options.db === 'object'
 
   if (options.hasOwnProperty('httpSuccessCodes')) {
     if (!(options.httpSuccessCodes instanceof Array)) throw new TypeError('httpSuccessCodes must be an array')
@@ -44,21 +49,27 @@ function WebHooks (options) {
   this.emitter = new events.EventEmitter2({ wildcard: true })
 
   var self = this
-  // sync loading:
-  try {
-    fs.accessSync(this.db, fs.R_OK | fs.W_OK)
-    // DB already exists, set listeners for every URL.
-    debug('webHook DB loaded, setting listeners...')
+
+  if (this.isMemDb) {
+    debug('setting listeners based on provided configuration object...')
     _setListeners(self)
-  } catch (e) {
-    // DB file not found, initialize it
-    if (e.hasOwnProperty('code')) {
-      if (e.code === 'ENOENT') {
-        // file not found, init DB:
-        debug('webHook DB init')
-        _initDB(self.db)
+  } else {
+    // sync loading:
+    try {
+      fs.accessSync(this.db, fs.R_OK | fs.W_OK)
+      // DB already exists, set listeners for every URL.
+      debug('webHook DB loaded, setting listeners...')
+      _setListeners(self)
+    } catch (e) {
+      // DB file not found, initialize it
+      if (e.hasOwnProperty('code')) {
+        if (e.code === 'ENOENT') {
+          // file not found, init DB:
+          debug('webHook DB init')
+          _initDB(self.db)
+        } else console.error(e)
       } else console.error(e)
-    } else console.error(e)
+    }
   }
 }
 
@@ -72,7 +83,7 @@ function _setListeners (self) {
   // set Listeners - sync method
 
   try {
-    var obj = jsonfile.readFileSync(self.db)
+    var obj = self.isMemDb ? self.db : jsonfile.readFileSync(self.db)
     if (!obj) throw Error('can\'t read webHook DB content')
 
     for (var key in obj) {
@@ -143,7 +154,7 @@ WebHooks.prototype.add = function (shortname, url) { // url is required
   var self = this
   return new Promise(function (resolve, reject) {
     try {
-      var obj = jsonfile.readFileSync(self.db)
+      var obj = self.isMemDb ? self.db : jsonfile.readFileSync(self.db)
       if (!obj) throw Error('can\'t read webHook DB content')
 
       var modified = false
@@ -171,7 +182,7 @@ WebHooks.prototype.add = function (shortname, url) { // url is required
 
         // actualize DB
       if (modified) {
-        jsonfile.writeFileSync(self.db, obj)
+        if (!self.isMemDb) jsonfile.writeFileSync(self.db, obj)
         resolve(true)
       } else resolve(false)
     } catch (e) {
@@ -207,7 +218,7 @@ WebHooks.prototype.remove = function (shortname, url) { // url is optional
         self.emitter.removeAllListeners(shortname)
 
         // delete all the callbacks in _functions for the specified shortname. Let's loop over the url taken from the DB.
-        var obj = jsonfile.readFileSync(self.db)
+        var obj = self.isMemDb ? self.db : jsonfile.readFileSync(self.db)
 
         if (obj.hasOwnProperty(shortname)) {
           var urls = obj[shortname]
@@ -222,7 +233,7 @@ WebHooks.prototype.remove = function (shortname, url) { // url is optional
             resolve(true)
           })
         } else {
-          debug('webHook doesn\'t exists')
+          debug('webHook doesn\'t exist')
           resolve(false)
         }
       }
@@ -234,7 +245,7 @@ WebHooks.prototype.remove = function (shortname, url) { // url is optional
 
 function _removeUrlFromShortname (self, shortname, url, callback) {
   try {
-    var obj = jsonfile.readFileSync(self.db)
+    var obj = self.isMemDb ? self.db : jsonfile.readFileSync(self.db)
 
     var deleted = false
     var len = obj[shortname].length
@@ -244,7 +255,7 @@ function _removeUrlFromShortname (self, shortname, url, callback) {
     if (obj[shortname].length !== len) deleted = true
       // save it back to the DB
     if (deleted) {
-      jsonfile.writeFileSync(self.db, obj)
+      if (!self.isMemDb) jsonfile.writeFileSync(self.db, obj)
       debug('url removed from existing shortname')
       callback(null, deleted)
     } else callback(null, deleted)
@@ -255,10 +266,10 @@ function _removeUrlFromShortname (self, shortname, url, callback) {
 
 function _removeShortname (self, shortname, callback) {
   try {
-    var obj = jsonfile.readFileSync(self.db)
+    var obj = self.isMemDb ? self.db : jsonfile.readFileSync(self.db)
     delete obj[shortname]
     // save it back to the DB
-    jsonfile.writeFileSync(self.db, obj)
+    if (!self.isMemDb) jsonfile.writeFileSync(self.db, obj)
     debug('whole shortname urls removed')
     callback(null)
   } catch (e) {
@@ -271,6 +282,7 @@ WebHooks.prototype.getDB = function () {
   // return the whole JSON DB file.
   var self = this
   return new Promise(function (resolve, reject) {
+    if (self.isMemDb) resolve(self.db)
     jsonfile.readFile(self.db, function (err, obj) {
       if (err) {
         reject(err) // file not found
@@ -286,18 +298,17 @@ WebHooks.prototype.getWebHook = function (shortname) {
   // return the selected WebHook.
   var self = this
   return new Promise(function (resolve, reject) {
-    jsonfile.readFile(self.db, function (err, obj) {
-      if (err) {
-        reject(err) // file not found
-      } else {
-        // file exists
-        if (obj[shortname]) {
-          resolve(obj[shortname])
+    if (self.isMemDb) {
+      resolve(self.db[shortname] || {})
+    } else {
+      jsonfile.readFile(self.db, function (err, obj) {
+        if (err) {
+          reject(err) // file not found
         } else {
-          resolve({})
+          resolve(obj[shortname] || {}) // file exists
         }
-      }
-    })
+      })
+    }
   })
 }
 
