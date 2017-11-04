@@ -29,10 +29,16 @@ To launch the example and enable debug: <code>DEBUG=node-webhooks node example.j
 // Initialize WebHooks module.
 var WebHooks = require('node-webhooks')
 
-
+// Initialize webhooks module from on-disk database
 var webHooks = new WebHooks({
     db: './webHooksDB.json', // json file that store webhook URLs
     httpSuccessCodes: [200, 201, 202, 203, 204], //optional success http status codes
+})
+
+// Alternatively, initialize webhooks module with object; changes will only be
+// made in-memory
+webHooks = new WebHooks({
+    db: {"addPost": ["http://localhost:9100/posts"]}, // just an example
 })
 
 // sync instantation - add a new webhook called 'shortname1'

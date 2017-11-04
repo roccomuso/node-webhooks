@@ -9,6 +9,10 @@ var WebHooks = require('../index')
 var webHooks
 var emitter
 var DB_FILE = path.join(__dirname, './webHooksDB.json') // json file that store webhook URLs
+var DB_OBJECT = {
+  makeASound: ['http://localhost/beep'],
+  flashALight: ['http://localhost/blink']
+}
 
 // IMPLEMENTED TESTS:
 
@@ -61,6 +65,121 @@ function handleRequest (request, response) {
 // Create a server
 var server = http.createServer(handleRequest)
 
+// To verify that basic CRUD operations work correctly both with in-memory and
+// on-disk database, we use these functions with the two different settings
+// below.
+
+function addShortnameRequired (done) {
+  try {
+    webHooks.add(null, URI + '/1/aaa').then(function () {
+      done('Error expected')
+    }).catch(function (err) {
+      throw new Error(err)
+    })
+  } catch (e) {
+    expect(e.message).to.equal('shortname required!')
+    done()
+  }
+}
+
+function addUrlRequired (done) {
+  try {
+    webHooks.add('hei', null).then(function () {
+      done('Error expected')
+    }).catch(function (err) {
+      throw new Error(err)
+    })
+  } catch (e) {
+    expect(e.message).to.equal('Url must be a string')
+    done()
+  }
+}
+
+function removeShortnameRequired (done) {
+  try {
+    webHooks.remove(null, 'hei').then(function () {
+      done('Error expected')
+    }).catch(function (err) {
+      throw new Error(err)
+    })
+  } catch (e) {
+    expect(e.message).to.equal('shortname required!')
+    done()
+  }
+}
+
+function getDBReturnsData (done) {
+  webHooks.getDB().then(function (db) {
+    should.exist(db)
+    done()
+  }).catch(function (e) {
+    throw e
+  })
+}
+
+function addWebhook1 (done) {
+  webHooks.add('hook1', URI + '/1/aaa').then(function () {
+    done()
+  }).catch(function (err) {
+    throw new Error(err)
+  })
+}
+
+function addUrlToHook1 (done) {
+  webHooks.add('hook1', URI + '/1/bbb').then(function () {
+    done()
+  }).catch(function (err) {
+    throw new Error(err)
+  })
+}
+
+function getWebhook1 (done) {
+  webHooks.getWebHook('hook1').then(function (obj) {
+    should.exist(obj)
+    expect(obj.length).to.equal(2)
+    expect(obj).to.have.members([URI + '/1/aaa', URI + '/1/bbb'])
+    done()
+  }).catch(function (err) {
+    throw new Error(err)
+  })
+}
+
+function deleteSingleUrl (done) {
+  webHooks.remove('hook1', URI + '/1/bbb').then(function (removed) {
+    expect(removed).to.equal(true)
+    done()
+  }).catch(function (err) {
+    done(err)
+  })
+}
+
+function deleteMissingUrl (done) {
+  webHooks.remove('hook1', URI + '/1/bbb').then(function (removed) {
+    expect(removed).to.equal(false)
+    done()
+  }).catch(function (err) {
+    done(err)
+  })
+}
+
+function deleteMissingHook (done) {
+  webHooks.remove('not-existing').then(function (removed) {
+    expect(removed).to.equal(false)
+    done()
+  }).catch(function (err) {
+    done(err)
+  })
+}
+
+function deleteHook1 (done) {
+  webHooks.remove('hook1').then(function (removed) {
+    expect(removed).to.equal(true)
+    done()
+  }).catch(function (err) {
+    done(err)
+  })
+}
+
 describe('Tests >', function () {
   before(function (done) {
         // Lets start our server
@@ -71,14 +190,35 @@ describe('Tests >', function () {
     })
   })
 
-  it('eventually delete old DB', function (done) {
+  it('create a node-webHooks instance with in-memory database', function (done) {
+    webHooks = new WebHooks({
+      db: DB_OBJECT
+    })
+    should.exist(webHooks)
+    webHooks.should.be.an('object')
+    done()
+  })
+
+  it('add: shortname required (in-memory DB)', addShortnameRequired)
+  it('add: Url required (in-memory DB)', addUrlRequired)
+  it('remove: shortname required (in-memory DB)', removeShortnameRequired)
+  it('getDB() returns data (in-memory DB)', getDBReturnsData)
+  it('add a webHook called hook1 (in-memory DB)', addWebhook1)
+  it('add a new URL to the webHook hook1 (in-memory DB)', addUrlToHook1)
+  it('should get the webHook using the .getWebHook method (in-memory DB)', getWebhook1)
+  it('should delete a single webHook URL (in-memory DB)', deleteSingleUrl)
+  it('should return false trying to delete a not existing webHook URL (in-memory DB)', deleteMissingUrl)
+  it('should return false trying to delete a not existing webHook (in-memory DB)', deleteMissingHook)
+  it('should delete an entire webHook (in-memory DB)', deleteHook1)
+
+  it('delete old test DB file, if it exists', function (done) {
     try {
       fs.unlinkSync(DB_FILE)
     } catch (e) {}
     done()
   })
 
-  it('create a node-webHooks istance', function (done) {
+  it('create a node-webHooks instance with on-disk database', function (done) {
     webHooks = new WebHooks({
       db: DB_FILE
     })
@@ -94,44 +234,9 @@ describe('Tests >', function () {
     })
   })
 
-  it('add: shortname required', function (done) {
-    try {
-      webHooks.add(null, URI + '/1/aaa').then(function () {
-        done('Error expected')
-      }).catch(function (err) {
-        throw new Error(err)
-      })
-    } catch (e) {
-      expect(e.message).to.equal('shortname required!')
-      done()
-    }
-  })
-
-  it('add: Url required', function (done) {
-    try {
-      webHooks.add('hei', null).then(function () {
-        done('Error expected')
-      }).catch(function (err) {
-        throw new Error(err)
-      })
-    } catch (e) {
-      expect(e.message).to.equal('Url must be a string')
-      done()
-    }
-  })
-
-  it('remove: shortname required', function (done) {
-    try {
-      webHooks.remove(null, 'hei').then(function () {
-        done('Error expected')
-      }).catch(function (err) {
-        throw new Error(err)
-      })
-    } catch (e) {
-      expect(e.message).to.equal('shortname required!')
-      done()
-    }
-  })
+  it('add: shortname required (on-disk DB)', addShortnameRequired)
+  it('add: Url required (on-disk DB)', addUrlRequired)
+  it('remove: shortname required (on-disk DB)', removeShortnameRequired)
 
   it('httpSuccessCodes is 200 by default', function (done) {
     expect(webHooks.httpSuccessCodes).to.deep.equal([200])
@@ -164,41 +269,10 @@ describe('Tests >', function () {
     }
   })
 
-  it('getDB() file', function (done) {
-    webHooks.getDB().then(function (db) {
-      should.exist(db)
-      done()
-    }).catch(function (e) {
-      throw e
-    })
-  })
-
-  it('add a webHook called hook1', function (done) {
-    webHooks.add('hook1', URI + '/1/aaa').then(function () {
-      done()
-    }).catch(function (err) {
-      throw new Error(err)
-    })
-  })
-
-  it('add a new URL to the webHook hook1', function (done) {
-    webHooks.add('hook1', URI + '/1/bbb').then(function () {
-      done()
-    }).catch(function (err) {
-      throw new Error(err)
-    })
-  })
-
-  it('should get the webHook using the .getWebHook method', function (done) {
-    webHooks.getWebHook('hook1').then(function (obj) {
-      should.exist(obj)
-      expect(obj.length).to.equal(2)
-      expect(obj).to.have.members([URI + '/1/aaa', URI + '/1/bbb'])
-      done()
-    }).catch(function (err) {
-      throw new Error(err)
-    })
-  })
+  it('getDB() returns data (on-disk DB)', getDBReturnsData)
+  it('add a webHook called hook1 (on-disk DB)', addWebhook1)
+  it('add a new URL to the webHook hook1 (on-disk DB)', addUrlToHook1)
+  it('should get the webHook using the .getWebHook method (on-disk DB)', getWebhook1)
 
   it('should fire the webHook with no body or headers', function (done) {
     this.timeout(3000)
@@ -271,32 +345,9 @@ describe('Tests >', function () {
     }, 1000)
   })
 
-  it('should delete a single webHook URL', function (done) {
-    webHooks.remove('hook1', URI + '/1/bbb').then(function (removed) {
-      expect(removed).to.equal(true)
-      done()
-    }).catch(function (err) {
-      done(err)
-    })
-  })
-
-  it('should return false trying to delete a not existing webHook URL', function (done) {
-    webHooks.remove('hook1', URI + '/1/bbb').then(function (removed) {
-      expect(removed).to.equal(false)
-      done()
-    }).catch(function (err) {
-      done(err)
-    })
-  })
-
-  it('should return false trying to delete a not existing webHook', function (done) {
-    webHooks.remove('not-existing').then(function (removed) {
-      expect(removed).to.equal(false)
-      done()
-    }).catch(function (err) {
-      done(err)
-    })
-  })
+  it('should delete a single webHook URL (on-disk DB)', deleteSingleUrl)
+  it('should return false trying to delete a not existing webHook URL (on-disk DB)', deleteMissingUrl)
+  it('should return false trying to delete a not existing webHook (on-disk DB)', deleteMissingHook)
 
   it('fire the webHook and make sure just one URL is called', function (done) {
     OUTCOMES = {}
@@ -310,14 +361,7 @@ describe('Tests >', function () {
     }, 1000)
   })
 
-  it('should delete an entire webHook', function (done) {
-    webHooks.remove('hook1').then(function (removed) {
-      expect(removed).to.equal(true)
-      done()
-    }).catch(function (err) {
-      done(err)
-    })
-  })
+  it('should delete an entire webHook (on-disk DB)', deleteHook1)
 
   it('should fire the deleted webHook and make sure no request is dispatched at all', function (done) {
     OUTCOMES = {}
