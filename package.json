@@ -9,6 +9,9 @@
     "coverage": "istanbul cover _mocha -- --timeout=5000 test/**/*.js",
     "publish-coverage": "cat ./coverage/lcov.info | coveralls"
   },
+  "engines": {
+    "node": ">=6.*.*"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/roccomuso/node-webhooks.git"
@@ -19,8 +22,8 @@
     "web",
     "hooks"
   ],
-  "author": "Rocco Musolino <rocco@hackerstribe.com> (http://hackerstribe.com)",
-  "license": "ISC",
+  "author": "Rocco Musolino <roccomusolino92@gmail.com>",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/roccomuso/node-webhooks/issues"
   },
