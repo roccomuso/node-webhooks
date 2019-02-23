@@ -4,11 +4,10 @@
   "description": "Create and trigger your own webHooks",
   "main": "index.js",
   "scripts": {
-    "test": "npm run std && npm run coverage && npm run security_check",
+    "test": "npm run std && npm run coverage",
     "std": "standard",
     "coverage": "istanbul cover _mocha -- --timeout=5000 test/**/*.js",
-    "publish-coverage": "cat ./coverage/lcov.info | coveralls",
-    "security_check": "nsp check"
+    "publish-coverage": "cat ./coverage/lcov.info | coveralls"
   },
   "repository": {
     "type": "git",
@@ -27,20 +26,19 @@
   },
   "homepage": "https://github.com/roccomuso/node-webhooks#readme",
   "dependencies": {
-    "bluebird": "^3.5.0",
-    "debug": "^3.1.0",
+    "bluebird": "^3.5.3",
+    "debug": "^4.1.1",
     "eventemitter2": "^5.0.1",
-    "jsonfile": "^4.0.0",
-    "lodash": "^4.17.10",
-    "request": "^2.81.0"
+    "jsonfile": "^5.0.0",
+    "lodash": "^4.17.11",
+    "request": "^2.88.0"
   },
   "devDependencies": {
-    "chai": "^4.0.2",
+    "chai": "^4.2.0",
     "coveralls": "^2.11.16",
     "istanbul": "^0.4.5",
     "mocha": "^3.4.2",
     "mocha-lcov-reporter": "^1.2.0",
-    "nsp": "^2.6.3",
     "standard": "^10.0.2"
   },
   "standard": {
