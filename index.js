@@ -106,17 +106,25 @@ function _setListeners (self) {
   // console.log(_functions[0] == _functions[2]);
 }
 
+function _interpolate (url, params) {
+  return _.reduce(params, function (currentUrl, value, key) {
+    return currentUrl.replace(new RegExp(':' + key, 'g'), value)
+  }, url)
+}
+
 function _getRequestFunction (self, url) {
   // return the function then called by the event listener.
-  var func = function (shortname, jsonData, headersData) { // argument required when eventEmitter.emit()
+  var func = function (shortname, jsonData, headersData, paramsData) { // argument required when eventEmitter.emit()
     var obj = {'Content-Type': 'application/json'}
     var headers = headersData ? _.merge(obj, headersData) : obj
+    var params = paramsData || {}
+    var resolvedUrl = _interpolate(url, params)
 
-    debug('POST request to:', url)
+    debug('POST request to:', resolvedUrl)
     // POST request to the instantiated URL with custom headers if provided
     request({
       method: 'POST',
-      uri: url,
+      uri: resolvedUrl,
       strictSSL: false,
       headers: headers,
       body: JSON.stringify(jsonData)
@@ -141,9 +149,9 @@ function _getRequestFunction (self, url) {
 
 // 'prototype' has improved performances, let's declare the methods
 
-WebHooks.prototype.trigger = function (shortname, jsonData, headersData) {
+WebHooks.prototype.trigger = function (shortname, jsonData, headersData, paramsData) {
   // trigger a webHook
-  this.emitter.emit(shortname, shortname, jsonData, headersData)
+  this.emitter.emit(shortname, shortname, jsonData, headersData, paramsData)
 }
 
 WebHooks.prototype.add = function (shortname, url) { // url is required
