@@ -52,6 +52,13 @@ webHooks.add('shortname2', 'http://127.0.0.1:9000/prova2/').then(function(){
 	console.log(err)
 });
 
+// add a webHook with url parameter interpolation
+webHooks.add('shortname3', 'http://127.0.0.1:9000/:id?search=:query').then(function(){
+	// done
+}).catch(function(err){
+	console.log(err)
+});
+
 // remove a single url attached to the given shortname
 // webHooks.remove('shortname3', 'http://127.0.0.1:9000/query/').catch(function(err){console.error(err);})
 
@@ -61,6 +68,9 @@ webHooks.add('shortname2', 'http://127.0.0.1:9000/prova2/').then(function(){
 // trigger a specific webHook
 webHooks.trigger('shortname1', {data: 123})
 webHooks.trigger('shortname2', {data: 123456}, {header: 'header'}) // payload will be sent as POST request with JSON body (Content-Type: application/json) and custom header
+
+// trigger a webhook with url parameter interpolation
+webHooks.trigger('shortname3', {data: 123456}, {header: 'header'}, {id: 123, query: 'xyz'})
 
 ```
 

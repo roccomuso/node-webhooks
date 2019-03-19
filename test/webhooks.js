@@ -182,9 +182,9 @@ function deleteHook1 (done) {
 
 describe('Tests >', function () {
   before(function (done) {
-        // Lets start our server
+    // Lets start our server
     server.listen(PORT, function () {
-            // Callback triggered when server is successfully listening. Hurray!
+      // Callback triggered when server is successfully listening. Hurray!
       debug('Server listening on: http://localhost:%s', PORT)
       done()
     })
@@ -323,6 +323,23 @@ describe('Tests >', function () {
       expect(OUTCOMES['/1/bbb']).to.have.property('body').equal('{}')
       done()
     }, 1000)
+  })
+
+  context('with url parameter interpolation', function () {
+    before(() => {
+      return webHooks.add('hook1', URI + '/:id/aaa')
+    })
+    it('should fire the webHook with url parameters', function (done) {
+      this.timeout(3000)
+      OUTCOMES = {}
+      webHooks.trigger('hook1', {}, {}, {
+        id: '123'
+      })
+      setTimeout(function () {
+        should.exist(OUTCOMES['/123/aaa'])
+        done()
+      }, 1000)
+    })
   })
 
   it('should fire the webHook with both custom body and headers', function (done) {
