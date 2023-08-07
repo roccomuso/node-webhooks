@@ -26,7 +26,7 @@ var events = require('eventemitter2')
 var _functions = {}
 
 // WebHooks Class
-function WebHooks (options) {
+function WebHooks(options) {
   if (typeof options !== 'object') throw new TypeError('Expected an Object')
   if (typeof options.db !== 'string' && typeof options.db !== 'object') {
     throw new TypeError('db Must be a String path or an object')
@@ -73,13 +73,13 @@ function WebHooks (options) {
   }
 }
 
-function _initDB (file) {
+function _initDB(file) {
   // init DB.
   var db = {} // init empty db
-  jsonfile.writeFileSync(file, db, {spaces: 2})
+  jsonfile.writeFileSync(file, db, { spaces: 2 })
 }
 
-function _setListeners (self) {
+function _setListeners(self) {
   // set Listeners - sync method
 
   try {
@@ -106,34 +106,35 @@ function _setListeners (self) {
   // console.log(_functions[0] == _functions[2]);
 }
 
-function _getRequestFunction (self, url) {
+function _getRequestFunction(self, url) {
   // return the function then called by the event listener.
-  var func = function (shortname, jsonData, headersData) { // argument required when eventEmitter.emit()
-    var obj = {'Content-Type': 'application/json'}
+  var func = function (shortname, jsonData, headersData, method) { // argument required when eventEmitter.emit()
+    var obj = { 'Content-Type': 'application/json' }
     var headers = headersData ? _.merge(obj, headersData) : obj
-
+    
     debug('POST request to:', url)
     // POST request to the instantiated URL with custom headers if provided
     request({
-      method: 'POST',
+      method: method || 'POST',
       uri: url,
       strictSSL: false,
       headers: headers,
-      body: JSON.stringify(jsonData)
+      body: method === "GET" ? null : JSON.stringify(jsonData)
     },
-    function (error, response, body) {
-      var statusCode = response ? response.statusCode : null
-      body = body || null
-      debug('Request sent - Server responded with:', statusCode, body)
+      function (error, response, body) {
+        var statusCode = response ? response.statusCode : null
+        response = response ? response.body : null
+        body = body || null
+        debug('Request sent - Server responded with:', statusCode, body)
 
-      if ((error || self.httpSuccessCodes.indexOf(statusCode) === -1)) {
-        self.emitter.emit(shortname + '.failure', shortname, statusCode, body)
-        return debug('HTTP failed: ' + error)
+        if ((error || self.httpSuccessCodes.indexOf(statusCode) === -1)) {
+          self.emitter.emit(shortname + '.failure', shortname, statusCode, body, response)
+          return debug('HTTP failed: ' + error)
+        }
+
+        self.emitter.emit(shortname + '.success', shortname, statusCode, body, response)
       }
-
-      self.emitter.emit(shortname + '.success', shortname, statusCode, body)
-    }
-      )
+    )
   }
 
   return func
@@ -141,9 +142,9 @@ function _getRequestFunction (self, url) {
 
 // 'prototype' has improved performances, let's declare the methods
 
-WebHooks.prototype.trigger = function (shortname, jsonData, headersData) {
+WebHooks.prototype.trigger = function (shortname, jsonData, headersData, method) {
   // trigger a webHook
-  this.emitter.emit(shortname, shortname, jsonData, headersData)
+  this.emitter.emit(shortname, shortname, jsonData, headersData, method)
 }
 
 WebHooks.prototype.add = function (shortname, url) { // url is required
@@ -160,9 +161,9 @@ WebHooks.prototype.add = function (shortname, url) { // url is required
       var modified = false
       var encUrl
       if (obj[shortname]) {
-          // shortname already exists
+        // shortname already exists
         if (obj[shortname].indexOf(url) === -1) {
-            // url doesn't exists for given shortname
+          // url doesn't exists for given shortname
           debug('url added to an existing shortname!')
           obj[shortname].push(url)
           encUrl = crypto.createHash('md5').update(url).digest('hex')
@@ -171,7 +172,7 @@ WebHooks.prototype.add = function (shortname, url) { // url is required
           modified = true
         }
       } else {
-          // new shortname
+        // new shortname
         debug('new shortname!')
         obj[shortname] = [url]
         encUrl = crypto.createHash('md5').update(url).digest('hex')
@@ -180,7 +181,7 @@ WebHooks.prototype.add = function (shortname, url) { // url is required
         modified = true
       }
 
-        // actualize DB
+      // actualize DB
       if (modified) {
         if (!self.isMemDb) jsonfile.writeFileSync(self.db, obj)
         resolve(true)
@@ -243,7 +244,7 @@ WebHooks.prototype.remove = function (shortname, url) { // url is optional
   })
 }
 
-function _removeUrlFromShortname (self, shortname, url, callback) {
+function _removeUrlFromShortname(self, shortname, url, callback) {
   try {
     var obj = self.isMemDb ? self.db : jsonfile.readFileSync(self.db)
 
@@ -253,7 +254,7 @@ function _removeUrlFromShortname (self, shortname, url, callback) {
       obj[shortname].splice(obj[shortname].indexOf(url), 1)
     }
     if (obj[shortname].length !== len) deleted = true
-      // save it back to the DB
+    // save it back to the DB
     if (deleted) {
       if (!self.isMemDb) jsonfile.writeFileSync(self.db, obj)
       debug('url removed from existing shortname')
@@ -264,7 +265,7 @@ function _removeUrlFromShortname (self, shortname, url, callback) {
   }
 }
 
-function _removeShortname (self, shortname, callback) {
+function _removeShortname(self, shortname, callback) {
   try {
     var obj = self.isMemDb ? self.db : jsonfile.readFileSync(self.db)
     delete obj[shortname]
