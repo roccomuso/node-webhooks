@@ -40,7 +40,7 @@ var URI = 'http://127.0.0.1:' + PORT
 var OUTCOMES = {}
 var LOADTEST = 0
 
-function handleRequest (request, response) {
+function handleRequest(request, response) {
   debug('called method:', request.method)
   debug('called URL:', request.url)
   debug('headers:', request.headers)
@@ -55,8 +55,8 @@ function handleRequest (request, response) {
     }
     if (request.url.indexOf('/2/') !== -1) LOADTEST++
     debug('body:', body)
-    if (request.url.indexOf('/fail') !== -1) { response.writeHead(400, {'Content-Type': 'application/json'}) } else {
-      response.writeHead(200, {'Content-Type': 'application/json'})
+    if (request.url.indexOf('/fail') !== -1) { response.writeHead(400, { 'Content-Type': 'application/json' }) } else {
+      response.writeHead(200, { 'Content-Type': 'application/json' })
     }
     response.end('Path Hit: ' + request.url)
   })
@@ -69,7 +69,7 @@ var server = http.createServer(handleRequest)
 // on-disk database, we use these functions with the two different settings
 // below.
 
-function addShortnameRequired (done) {
+function addShortnameRequired(done) {
   try {
     webHooks.add(null, URI + '/1/aaa').then(function () {
       done('Error expected')
@@ -82,7 +82,7 @@ function addShortnameRequired (done) {
   }
 }
 
-function addUrlRequired (done) {
+function addUrlRequired(done) {
   try {
     webHooks.add('hei', null).then(function () {
       done('Error expected')
@@ -95,7 +95,7 @@ function addUrlRequired (done) {
   }
 }
 
-function removeShortnameRequired (done) {
+function removeShortnameRequired(done) {
   try {
     webHooks.remove(null, 'hei').then(function () {
       done('Error expected')
@@ -108,7 +108,7 @@ function removeShortnameRequired (done) {
   }
 }
 
-function getDBReturnsData (done) {
+function getDBReturnsData(done) {
   webHooks.getDB().then(function (db) {
     should.exist(db)
     done()
@@ -117,7 +117,7 @@ function getDBReturnsData (done) {
   })
 }
 
-function addWebhook1 (done) {
+function addWebhook1(done) {
   webHooks.add('hook1', URI + '/1/aaa').then(function () {
     done()
   }).catch(function (err) {
@@ -125,7 +125,7 @@ function addWebhook1 (done) {
   })
 }
 
-function addUrlToHook1 (done) {
+function addUrlToHook1(done) {
   webHooks.add('hook1', URI + '/1/bbb').then(function () {
     done()
   }).catch(function (err) {
@@ -133,7 +133,7 @@ function addUrlToHook1 (done) {
   })
 }
 
-function getWebhook1 (done) {
+function getWebhook1(done) {
   webHooks.getWebHook('hook1').then(function (obj) {
     should.exist(obj)
     expect(obj.length).to.equal(2)
@@ -144,7 +144,7 @@ function getWebhook1 (done) {
   })
 }
 
-function deleteSingleUrl (done) {
+function deleteSingleUrl(done) {
   webHooks.remove('hook1', URI + '/1/bbb').then(function (removed) {
     expect(removed).to.equal(true)
     done()
@@ -153,7 +153,7 @@ function deleteSingleUrl (done) {
   })
 }
 
-function deleteMissingUrl (done) {
+function deleteMissingUrl(done) {
   webHooks.remove('hook1', URI + '/1/bbb').then(function (removed) {
     expect(removed).to.equal(false)
     done()
@@ -162,7 +162,7 @@ function deleteMissingUrl (done) {
   })
 }
 
-function deleteMissingHook (done) {
+function deleteMissingHook(done) {
   webHooks.remove('not-existing').then(function (removed) {
     expect(removed).to.equal(false)
     done()
@@ -171,7 +171,7 @@ function deleteMissingHook (done) {
   })
 }
 
-function deleteHook1 (done) {
+function deleteHook1(done) {
   webHooks.remove('hook1').then(function (removed) {
     expect(removed).to.equal(true)
     done()
@@ -182,9 +182,9 @@ function deleteHook1 (done) {
 
 describe('Tests >', function () {
   before(function (done) {
-        // Lets start our server
+    // Lets start our server
     server.listen(PORT, function () {
-            // Callback triggered when server is successfully listening. Hurray!
+      // Callback triggered when server is successfully listening. Hurray!
       debug('Server listening on: http://localhost:%s', PORT)
       done()
     })
@@ -214,7 +214,7 @@ describe('Tests >', function () {
   it('delete old test DB file, if it exists', function (done) {
     try {
       fs.unlinkSync(DB_FILE)
-    } catch (e) {}
+    } catch (e) { }
     done()
   })
 
@@ -345,6 +345,21 @@ describe('Tests >', function () {
     }, 1000)
   })
 
+  it('should fire the webHook with method GET or POST', function (done) {
+    this.timeout(3000)
+    OUTCOMES = {}
+    webHooks.trigger('hook1', {}, {}, "GET")
+    setTimeout(function () {
+      debug('OUTCOME-4:', OUTCOMES)
+      should.exist(OUTCOMES['/1/aaa'])
+      should.exist(OUTCOMES['/1/bbb'])
+      expect(OUTCOMES['/1/aaa']).to.have.property('method').equal('GET')
+      expect(OUTCOMES['/1/aaa']).to.have.property('headers').equal('{}')
+      expect(OUTCOMES['/1/aaa']).to.have.property('body').equal('{}')
+      done()
+    }, 1000)
+  })
+
   it('should delete a single webHook URL (on-disk DB)', deleteSingleUrl)
   it('should return false trying to delete a not existing webHook URL (on-disk DB)', deleteMissingUrl)
   it('should return false trying to delete a not existing webHook (on-disk DB)', deleteMissingHook)
@@ -376,12 +391,12 @@ describe('Tests >', function () {
 
   it('should create a new webHook called hook2 for loadtest', function (done) {
     webHooks.add('hook2', URI + '/2/aaa').then(
-            webHooks.add('hook2', URI + '/2/bbb').then(function () {
-              done()
-            })
-        ).catch(function (err) {
-          throw new Error(err)
-        })
+      webHooks.add('hook2', URI + '/2/bbb').then(function () {
+        done()
+      })
+    ).catch(function (err) {
+      throw new Error(err)
+    })
   })
 
   it('check webHooks were saved successfully using the .getWebHook method', function (done) {
@@ -398,8 +413,8 @@ describe('Tests >', function () {
 
   it('should fire the webHook 1000 times and 2000 REST calls are expected', function (done) {
     this.timeout(25 * 1000)
-        // disabling debug to avoid console flooding
-        // debug = function() {};
+    // disabling debug to avoid console flooding
+    // debug = function() {};
 
     for (var i = 1; i <= 1000; i++) {
       (function (i) {
@@ -445,7 +460,7 @@ describe('Events >', function () {
       done('hook3.failure error: wrong event catched.')
     })
     emitter.on('hook3.success', function (shortname, statusCode, body) {
-      debug('hook3.success:', {shortname: shortname, statusCode: statusCode, body: body})
+      debug('hook3.success:', { shortname: shortname, statusCode: statusCode, body: body })
       should.exist(shortname)
       should.exist(statusCode)
       should.exist(body)
@@ -454,7 +469,7 @@ describe('Events >', function () {
       body.should.equal('Path Hit: /3/aaa') // body response from the server
       done()
     })
-        // fire the hook
+    // fire the hook
     webHooks.trigger('hook3', {
       header1: 'pippo'
     }, {
@@ -497,7 +512,7 @@ describe('Events >', function () {
       body.should.equal('Path Hit: /4/fail')
       done()
     })
-        // fire the hook
+    // fire the hook
     webHooks.trigger('hook4', {
       header1: 'foo'
     }, {
@@ -540,7 +555,7 @@ describe('Events >', function () {
         done()
       }
     })
-        // fire the hooks
+    // fire the hooks
     webHooks.trigger('hook5')
     webHooks.trigger('hook6')
   })
@@ -566,13 +581,13 @@ describe('Events >', function () {
         done()
       }
     })
-        // fire the hooks
+    // fire the hooks
     webHooks.trigger('hook7')
     webHooks.trigger('hook8')
   })
 
   after(function (done) {
-        // stop the server
+    // stop the server
     server.close(function () {
       done()
     })
