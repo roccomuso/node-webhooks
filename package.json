@@ -4,7 +4,7 @@
   "description": "Create and trigger your own webHooks",
   "main": "index.js",
   "scripts": {
-    "test": "npm run std && npm run coverage",
+    "test": "standard && istanbul cover _mocha -- --timeout=5000 test/**/*.js",
     "std": "standard",
     "coverage": "istanbul cover _mocha -- --timeout=5000 test/**/*.js",
     "publish-coverage": "cat ./coverage/lcov.info | coveralls"
