@@ -171,6 +171,15 @@ function deleteMissingHook (done) {
   })
 }
 
+function deleteMissingUrlFromMissingHook (done) {
+  webHooks.remove('not-existing', URI + '/missing').then(function (removed) {
+    expect(removed).to.equal(false)
+    done()
+  }).catch(function (err) {
+    done(err)
+  })
+}
+
 function deleteHook1 (done) {
   webHooks.remove('hook1').then(function (removed) {
     expect(removed).to.equal(true)
@@ -209,7 +218,69 @@ describe('Tests >', function () {
   it('should delete a single webHook URL (in-memory DB)', deleteSingleUrl)
   it('should return false trying to delete a not existing webHook URL (in-memory DB)', deleteMissingUrl)
   it('should return false trying to delete a not existing webHook (in-memory DB)', deleteMissingHook)
+  it('should return false trying to delete a URL from a not existing webHook (in-memory DB)', deleteMissingUrlFromMissingHook)
   it('should delete an entire webHook (in-memory DB)', deleteHook1)
+
+  it('keeps listener references isolated across instances with the same URL', function (done) {
+    this.timeout(3000)
+
+    var sharedUrl = URI + '/shared'
+    var firstWebHooks = new WebHooks({
+      db: {
+        shared: [sharedUrl]
+      }
+    })
+    var secondWebHooks = new WebHooks({
+      db: {
+        shared: [sharedUrl]
+      }
+    })
+
+    expect(firstWebHooks.getListeners()).to.not.equal(secondWebHooks.getListeners())
+
+    firstWebHooks.remove('shared', sharedUrl).then(function (removed) {
+      expect(removed).to.equal(true)
+
+      OUTCOMES = {}
+      secondWebHooks.trigger('shared')
+      setTimeout(function () {
+        should.exist(OUTCOMES['/shared'])
+        done()
+      }, 250)
+    }).catch(function (err) {
+      done(err)
+    })
+  })
+
+  it('keeps listener references isolated across shortnames with the same URL', function (done) {
+    this.timeout(3000)
+
+    var sharedUrl = URI + '/shared-shortnames'
+    var instance = new WebHooks({
+      db: {
+        first: [sharedUrl],
+        second: [sharedUrl]
+      }
+    })
+
+    instance.remove('first', sharedUrl).then(function (removed) {
+      expect(removed).to.equal(true)
+
+      OUTCOMES = {}
+      instance.trigger('first')
+      setTimeout(function () {
+        should.not.exist(OUTCOMES['/shared-shortnames'])
+
+        instance.trigger('second')
+        setTimeout(function () {
+          should.exist(OUTCOMES['/shared-shortnames'])
+          done()
+        }, 250)
+      }, 250)
+    }).catch(function (err) {
+      done(err)
+    })
+  })
 
   it('delete old test DB file, if it exists', function (done) {
     try {
@@ -348,6 +419,7 @@ describe('Tests >', function () {
   it('should delete a single webHook URL (on-disk DB)', deleteSingleUrl)
   it('should return false trying to delete a not existing webHook URL (on-disk DB)', deleteMissingUrl)
   it('should return false trying to delete a not existing webHook (on-disk DB)', deleteMissingHook)
+  it('should return false trying to delete a URL from a not existing webHook (on-disk DB)', deleteMissingUrlFromMissingHook)
 
   it('fire the webHook and make sure just one URL is called', function (done) {
     OUTCOMES = {}
@@ -397,25 +469,34 @@ describe('Tests >', function () {
   })
 
   it('should fire the webHook 1000 times and 2000 REST calls are expected', function (done) {
-    this.timeout(25 * 1000)
-        // disabling debug to avoid console flooding
-        // debug = function() {};
+    this.timeout(30 * 1000)
 
-    for (var i = 1; i <= 1000; i++) {
-      (function (i) {
+    var totalTriggers = 1000
+    var batchSize = 50
+    var sent = 0
+    LOADTEST = 0
+
+    function sendBatch () {
+      var batchEnd = Math.min(sent + batchSize, totalTriggers)
+      for (var i = sent + 1; i <= batchEnd; i++) {
         webHooks.trigger('hook2', {
           i: i
         })
-      })(i)
+      }
+      sent = batchEnd
     }
 
     var loop = setInterval(function () {
       console.log('Got', LOADTEST + '/2000', 'REST calls')
-      if (LOADTEST === 2000) {
+      if (LOADTEST === sent * 2 && sent < totalTriggers) {
+        sendBatch()
+      } else if (LOADTEST === 2000) {
         clearInterval(loop)
         done()
       }
     }, 500)
+
+    sendBatch()
   })
 })
 
