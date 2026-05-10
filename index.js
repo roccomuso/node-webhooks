@@ -22,12 +22,9 @@ var crypto = require('crypto')
 var request = require('request')
 var events = require('eventemitter2')
 
-// will contain all the functions. We need to store them to be able to remove the listener callbacks
-var _functions = {}
-
 // WebHooks Class
 function WebHooks (options) {
-  if (typeof options !== 'object') throw new TypeError('Expected an Object')
+  if (!options || typeof options !== 'object') throw new TypeError('Expected an Object')
   if (typeof options.db !== 'string' && typeof options.db !== 'object') {
     throw new TypeError('db Must be a String path or an object')
   }
@@ -47,6 +44,8 @@ function WebHooks (options) {
   }
 
   this.emitter = new events.EventEmitter2({ wildcard: true })
+  // Store listener callbacks per instance so they can be removed by reference.
+  this._functions = {}
 
   var self = this
 
@@ -67,10 +66,14 @@ function WebHooks (options) {
           // file not found, init DB:
           debug('webHook DB init')
           _initDB(self.db)
-        } else console.error(e)
-      } else console.error(e)
+        } else throw e
+      } else throw e
     }
   }
+}
+
+function _getListenerKey (shortname, url) {
+  return crypto.createHash('md5').update(shortname + '\n' + url).digest('hex')
 }
 
 function _initDB (file) {
@@ -92,9 +95,9 @@ function _setListeners (self) {
 
       var urls = obj[key]
       urls.forEach(function (url) {
-        var encUrl = crypto.createHash('md5').update(url).digest('hex')
-        _functions[encUrl] = _getRequestFunction(self, url)
-        self.emitter.on(key, _functions[encUrl])
+        var encUrl = _getListenerKey(key, url)
+        self._functions[encUrl] = _getRequestFunction(self, url)
+        self.emitter.on(key, self._functions[encUrl])
       })
     }
   } catch (e) {
@@ -165,18 +168,18 @@ WebHooks.prototype.add = function (shortname, url) { // url is required
             // url doesn't exists for given shortname
           debug('url added to an existing shortname!')
           obj[shortname].push(url)
-          encUrl = crypto.createHash('md5').update(url).digest('hex')
-          _functions[encUrl] = _getRequestFunction(self, url)
-          self.emitter.on(shortname, _functions[encUrl])
+          encUrl = _getListenerKey(shortname, url)
+          self._functions[encUrl] = _getRequestFunction(self, url)
+          self.emitter.on(shortname, self._functions[encUrl])
           modified = true
         }
       } else {
           // new shortname
         debug('new shortname!')
         obj[shortname] = [url]
-        encUrl = crypto.createHash('md5').update(url).digest('hex')
-        _functions[encUrl] = _getRequestFunction(self, url)
-        self.emitter.on(shortname, _functions[encUrl])
+        encUrl = _getListenerKey(shortname, url)
+        self._functions[encUrl] = _getRequestFunction(self, url)
+        self.emitter.on(shortname, self._functions[encUrl])
         modified = true
       }
 
@@ -207,9 +210,9 @@ WebHooks.prototype.remove = function (shortname, url) { // url is optional
           if (err) return reject(err)
           if (done) {
             // remove only the specified url
-            var urlKey = crypto.createHash('md5').update(url).digest('hex')
-            self.emitter.removeListener(shortname, _functions[urlKey])
-            delete _functions[urlKey]
+            var urlKey = _getListenerKey(shortname, url)
+            self.emitter.removeListener(shortname, self._functions[urlKey])
+            delete self._functions[urlKey]
             resolve(true)
           } else resolve(false)
         })
@@ -223,8 +226,8 @@ WebHooks.prototype.remove = function (shortname, url) { // url is optional
         if (obj.hasOwnProperty(shortname)) {
           var urls = obj[shortname]
           urls.forEach(function (url) {
-            var urlKey = crypto.createHash('md5').update(url).digest('hex')
-            delete _functions[urlKey]
+            var urlKey = _getListenerKey(shortname, url)
+            delete self._functions[urlKey]
           })
 
           // save it back to the DB
@@ -248,6 +251,10 @@ function _removeUrlFromShortname (self, shortname, url, callback) {
     var obj = self.isMemDb ? self.db : jsonfile.readFileSync(self.db)
 
     var deleted = false
+    if (!obj.hasOwnProperty(shortname)) {
+      return callback(null, deleted)
+    }
+
     var len = obj[shortname].length
     if (obj[shortname].indexOf(url) !== -1) {
       obj[shortname].splice(obj[shortname].indexOf(url), 1)
@@ -282,7 +289,7 @@ WebHooks.prototype.getDB = function () {
   // return the whole JSON DB file.
   var self = this
   return new Promise(function (resolve, reject) {
-    if (self.isMemDb) resolve(self.db)
+    if (self.isMemDb) return resolve(self.db)
     jsonfile.readFile(self.db, function (err, obj) {
       if (err) {
         reject(err) // file not found
@@ -313,7 +320,7 @@ WebHooks.prototype.getWebHook = function (shortname) {
 }
 
 WebHooks.prototype.getListeners = function () {
-  return _functions
+  return this._functions
 }
 
 WebHooks.prototype.getEmitter = function () {
