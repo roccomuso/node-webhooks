@@ -1,5 +1,6 @@
 node_modules/
 npm-debug.log
 coverage/
+.nyc_output/
 /webHooksDB.json
 test/webHooksDB.json

@@ -1,16 +1,16 @@
 {
   "name": "node-webhooks",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "description": "Create and trigger your own webHooks",
   "main": "index.js",
   "scripts": {
-    "test": "standard && istanbul cover _mocha -- --timeout=5000 test/**/*.js",
+    "test": "standard && nyc --reporter=lcov --reporter=text mocha --timeout=5000 test/**/*.js",
     "std": "standard",
-    "coverage": "istanbul cover _mocha -- --timeout=5000 test/**/*.js",
+    "coverage": "nyc --reporter=lcov --reporter=text mocha --timeout=5000 test/**/*.js",
     "publish-coverage": "cat ./coverage/lcov.info | coveralls"
   },
   "engines": {
-    "node": ">=6.*.*"
+    "node": ">=18"
   },
   "repository": {
     "type": "git",
@@ -29,20 +29,16 @@
   },
   "homepage": "https://github.com/roccomuso/node-webhooks#readme",
   "dependencies": {
-    "bluebird": "^3.5.3",
-    "debug": "^4.1.1",
-    "eventemitter2": "^5.0.1",
-    "jsonfile": "^5.0.0",
-    "lodash": "^4.17.11",
-    "request": "^2.88.0"
+    "debug": "^4.4.3",
+    "eventemitter2": "^6.4.9",
+    "jsonfile": "^6.2.1"
   },
   "devDependencies": {
-    "chai": "^4.2.0",
-    "coveralls": "^2.11.16",
-    "istanbul": "^0.4.5",
-    "mocha": "^3.4.2",
-    "mocha-lcov-reporter": "^1.2.0",
-    "standard": "^10.0.2"
+    "chai": "^4.5.0",
+    "coveralls": "^3.1.1",
+    "mocha": "^11.7.6",
+    "nyc": "^18.0.0",
+    "standard": "^17.1.2"
   },
   "standard": {
     "env": [
