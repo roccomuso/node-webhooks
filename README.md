@@ -12,7 +12,7 @@ or:
 
     yarn add node-webhooks
 
-Supports Node.js 6 or later.
+Supports Node.js 18 or later.
 
 ## How it works
 

@@ -1,3 +1,5 @@
+'use strict'
+
 /*
 Author @ Rocco Musolino
 
@@ -13,267 +15,103 @@ DB Structure Example:
 
 */
 
-var debug = require('debug')('node-webhooks')
-var Promise = require('bluebird') // for backward compatibility
-var _ = require('lodash')
-var jsonfile = require('jsonfile')
-var fs = require('fs')
-var crypto = require('crypto')
-var request = require('request')
-var events = require('eventemitter2')
+const debug = require('debug')('node-webhooks')
+const jsonfile = require('jsonfile')
+const fs = require('fs')
+const crypto = require('crypto')
+const { EventEmitter2 } = require('eventemitter2')
 
-// WebHooks Class
-function WebHooks (options) {
-  if (!options || typeof options !== 'object') throw new TypeError('Expected an Object')
-  if (typeof options.db !== 'string' && typeof options.db !== 'object') {
-    throw new TypeError('db Must be a String path or an object')
-  }
-
-  this.db = options.db
-
-  // If webhooks data is kept in memory, we skip all disk operations
-  this.isMemDb = typeof options.db === 'object'
-
-  if (options.hasOwnProperty('httpSuccessCodes')) {
-    if (!(options.httpSuccessCodes instanceof Array)) throw new TypeError('httpSuccessCodes must be an array')
-    if (options.httpSuccessCodes.length <= 0) throw new TypeError('httpSuccessCodes must contain at least one http status code')
-
-    this.httpSuccessCodes = options.httpSuccessCodes
-  } else {
-    this.httpSuccessCodes = [200]
-  }
-
-  this.emitter = new events.EventEmitter2({ wildcard: true })
-  // Store listener callbacks per instance so they can be removed by reference.
-  this._functions = {}
-
-  var self = this
-
-  if (this.isMemDb) {
-    debug('setting listeners based on provided configuration object...')
-    _setListeners(self)
-  } else {
-    // sync loading:
-    try {
-      fs.accessSync(this.db, fs.R_OK | fs.W_OK)
-      // DB already exists, set listeners for every URL.
-      debug('webHook DB loaded, setting listeners...')
-      _setListeners(self)
-    } catch (e) {
-      // DB file not found, initialize it
-      if (e.hasOwnProperty('code')) {
-        if (e.code === 'ENOENT') {
-          // file not found, init DB:
-          debug('webHook DB init')
-          _initDB(self.db)
-        } else throw e
-      } else throw e
-    }
-  }
-}
-
-function _getListenerKey (shortname, url) {
+function getListenerKey (shortname, url) {
   return crypto.createHash('md5').update(shortname + '\n' + url).digest('hex')
 }
 
-function _initDB (file) {
+function initDB (file) {
   // init DB.
-  var db = {} // init empty db
-  jsonfile.writeFileSync(file, db, {spaces: 2})
+  const db = {} // init empty db
+  jsonfile.writeFileSync(file, db, { spaces: 2 })
 }
 
-function _setListeners (self) {
+function setListeners (self) {
   // set Listeners - sync method
-
   try {
-    var obj = self.isMemDb ? self.db : jsonfile.readFileSync(self.db)
-    if (!obj) throw Error('can\'t read webHook DB content')
+    const obj = self.isMemDb ? self.db : jsonfile.readFileSync(self.db)
+    if (!obj) throw new Error('can\'t read webHook DB content')
 
-    for (var key in obj) {
-      // skip loop if the property is from prototype
-      if (!obj.hasOwnProperty(key)) continue
-
-      var urls = obj[key]
-      urls.forEach(function (url) {
-        var encUrl = _getListenerKey(key, url)
-        self._functions[encUrl] = _getRequestFunction(self, url)
+    for (const key of Object.keys(obj)) {
+      const urls = obj[key]
+      urls.forEach((url) => {
+        const encUrl = getListenerKey(key, url)
+        self._functions[encUrl] = getRequestFunction(self, url)
         self.emitter.on(key, self._functions[encUrl])
       })
     }
   } catch (e) {
-    throw Error(e)
+    throw e instanceof Error ? e : new Error(e)
   }
-
-  // console.log(_functions[0] == _functions[1]);
-  // console.log(_functions[1] == _functions[2]);
-  // console.log(_functions[0] == _functions[2]);
 }
 
-function _getRequestFunction (self, url) {
+function getRequestFunction (self, url) {
   // return the function then called by the event listener.
-  var func = function (shortname, jsonData, headersData) { // argument required when eventEmitter.emit()
-    var obj = {'Content-Type': 'application/json'}
-    var headers = headersData ? _.merge(obj, headersData) : obj
+  return async function (shortname, jsonData, headersData) { // argument required when eventEmitter.emit()
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, headersData)
 
     debug('POST request to:', url)
-    // POST request to the instantiated URL with custom headers if provided
-    request({
-      method: 'POST',
-      uri: url,
-      strictSSL: false,
-      headers: headers,
-      body: JSON.stringify(jsonData)
-    },
-    function (error, response, body) {
-      var statusCode = response ? response.statusCode : null
-      body = body || null
-      debug('Request sent - Server responded with:', statusCode, body)
 
-      if ((error || self.httpSuccessCodes.indexOf(statusCode) === -1)) {
-        self.emitter.emit(shortname + '.failure', shortname, statusCode, body)
-        return debug('HTTP failed: ' + error)
-      }
-
-      self.emitter.emit(shortname + '.success', shortname, statusCode, body)
-    }
-      )
-  }
-
-  return func
-}
-
-// 'prototype' has improved performances, let's declare the methods
-
-WebHooks.prototype.trigger = function (shortname, jsonData, headersData) {
-  // trigger a webHook
-  this.emitter.emit(shortname, shortname, jsonData, headersData)
-}
-
-WebHooks.prototype.add = function (shortname, url) { // url is required
-  // add a new webHook.
-  if (typeof shortname !== 'string') throw new TypeError('shortname required!')
-  if (typeof url !== 'string') throw new TypeError('Url must be a string')
-
-  var self = this
-  return new Promise(function (resolve, reject) {
+    let response
     try {
-      var obj = self.isMemDb ? self.db : jsonfile.readFileSync(self.db)
-      if (!obj) throw Error('can\'t read webHook DB content')
-
-      var modified = false
-      var encUrl
-      if (obj[shortname]) {
-          // shortname already exists
-        if (obj[shortname].indexOf(url) === -1) {
-            // url doesn't exists for given shortname
-          debug('url added to an existing shortname!')
-          obj[shortname].push(url)
-          encUrl = _getListenerKey(shortname, url)
-          self._functions[encUrl] = _getRequestFunction(self, url)
-          self.emitter.on(shortname, self._functions[encUrl])
-          modified = true
-        }
-      } else {
-          // new shortname
-        debug('new shortname!')
-        obj[shortname] = [url]
-        encUrl = _getListenerKey(shortname, url)
-        self._functions[encUrl] = _getRequestFunction(self, url)
-        self.emitter.on(shortname, self._functions[encUrl])
-        modified = true
-      }
-
-        // actualize DB
-      if (modified) {
-        if (!self.isMemDb) jsonfile.writeFileSync(self.db, obj)
-        resolve(true)
-      } else resolve(false)
-    } catch (e) {
-      reject(e)
+      // POST request to the instantiated URL with custom headers if provided
+      response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(jsonData)
+      })
+    } catch (error) {
+      debug('HTTP failed:', error.message)
+      self.emitter.emit(`${shortname}.failure`, shortname, null, null)
+      return
     }
-  })
-}
 
-WebHooks.prototype.remove = function (shortname, url) { // url is optional
-  // if url exists remove only the url attached to the selected webHook.
-  // else remove the webHook and all the attached URLs.
-  if (typeof shortname !== 'string') {
-    throw new TypeError('shortname required!')
+    const statusCode = response.status
+    const body = await response.text()
+    debug('Request sent - Server responded with:', statusCode, body)
+
+    if (self.httpSuccessCodes.indexOf(statusCode) === -1) {
+      self.emitter.emit(`${shortname}.failure`, shortname, statusCode, body)
+      return
+    }
+
+    self.emitter.emit(`${shortname}.success`, shortname, statusCode, body)
   }
-  var self = this
-  return new Promise(function (resolve, reject) {
-    // Basically removeListener will look up the given function by reference, if it found that function it will remove it from the event hander.
-    try {
-      if (typeof url !== 'undefined') {
-        // save in db
-        _removeUrlFromShortname(self, shortname, url, function (err, done) {
-          if (err) return reject(err)
-          if (done) {
-            // remove only the specified url
-            var urlKey = _getListenerKey(shortname, url)
-            self.emitter.removeListener(shortname, self._functions[urlKey])
-            delete self._functions[urlKey]
-            resolve(true)
-          } else resolve(false)
-        })
-      } else {
-        // remove every event listener attached to the webHook shortname.
-        self.emitter.removeAllListeners(shortname)
-
-        // delete all the callbacks in _functions for the specified shortname. Let's loop over the url taken from the DB.
-        var obj = self.isMemDb ? self.db : jsonfile.readFileSync(self.db)
-
-        if (obj.hasOwnProperty(shortname)) {
-          var urls = obj[shortname]
-          urls.forEach(function (url) {
-            var urlKey = _getListenerKey(shortname, url)
-            delete self._functions[urlKey]
-          })
-
-          // save it back to the DB
-          _removeShortname(self, shortname, function (err) {
-            if (err) return reject(err)
-            resolve(true)
-          })
-        } else {
-          debug('webHook doesn\'t exist')
-          resolve(false)
-        }
-      }
-    } catch (e) {
-      reject(e)
-    }
-  })
 }
 
-function _removeUrlFromShortname (self, shortname, url, callback) {
+function removeUrlFromShortname (self, shortname, url, callback) {
   try {
-    var obj = self.isMemDb ? self.db : jsonfile.readFileSync(self.db)
+    const obj = self.isMemDb ? self.db : jsonfile.readFileSync(self.db)
 
-    var deleted = false
-    if (!obj.hasOwnProperty(shortname)) {
+    let deleted = false
+    if (!Object.prototype.hasOwnProperty.call(obj, shortname)) {
       return callback(null, deleted)
     }
 
-    var len = obj[shortname].length
-    if (obj[shortname].indexOf(url) !== -1) {
-      obj[shortname].splice(obj[shortname].indexOf(url), 1)
-    }
+    const len = obj[shortname].length
+    const idx = obj[shortname].indexOf(url)
+    if (idx !== -1) obj[shortname].splice(idx, 1)
     if (obj[shortname].length !== len) deleted = true
-      // save it back to the DB
+
+    // save it back to the DB
     if (deleted) {
       if (!self.isMemDb) jsonfile.writeFileSync(self.db, obj)
       debug('url removed from existing shortname')
-      callback(null, deleted)
-    } else callback(null, deleted)
+    }
+    callback(null, deleted)
   } catch (e) {
     callback(e, null)
   }
 }
 
-function _removeShortname (self, shortname, callback) {
+function removeShortname (self, shortname, callback) {
   try {
-    var obj = self.isMemDb ? self.db : jsonfile.readFileSync(self.db)
+    const obj = self.isMemDb ? self.db : jsonfile.readFileSync(self.db)
     delete obj[shortname]
     // save it back to the DB
     if (!self.isMemDb) jsonfile.writeFileSync(self.db, obj)
@@ -284,47 +122,199 @@ function _removeShortname (self, shortname, callback) {
   }
 }
 
-// async method
-WebHooks.prototype.getDB = function () {
-  // return the whole JSON DB file.
-  var self = this
-  return new Promise(function (resolve, reject) {
-    if (self.isMemDb) return resolve(self.db)
-    jsonfile.readFile(self.db, function (err, obj) {
-      if (err) {
-        reject(err) // file not found
-      } else {
-        resolve(obj) // file exists
+class WebHooks {
+  constructor (options) {
+    if (!options || typeof options !== 'object') throw new TypeError('Expected an Object')
+    if (typeof options.db !== 'string' && typeof options.db !== 'object') {
+      throw new TypeError('db Must be a String path or an object')
+    }
+
+    this.db = options.db
+
+    // If webhooks data is kept in memory, we skip all disk operations
+    this.isMemDb = typeof options.db === 'object'
+
+    if (Object.prototype.hasOwnProperty.call(options, 'httpSuccessCodes')) {
+      if (!Array.isArray(options.httpSuccessCodes)) throw new TypeError('httpSuccessCodes must be an array')
+      if (options.httpSuccessCodes.length <= 0) throw new TypeError('httpSuccessCodes must contain at least one http status code')
+
+      this.httpSuccessCodes = options.httpSuccessCodes
+    } else {
+      this.httpSuccessCodes = [200]
+    }
+
+    this.emitter = new EventEmitter2({ wildcard: true })
+    // A shortname can have any number of URLs attached, each backed by its own
+    // listener on the same event name: don't warn when that number grows past 10.
+    this.emitter.setMaxListeners(0)
+    // Store listener callbacks per instance so they can be removed by reference.
+    this._functions = {}
+
+    if (this.isMemDb) {
+      debug('setting listeners based on provided configuration object...')
+      setListeners(this)
+    } else {
+      // sync loading:
+      try {
+        fs.accessSync(this.db, fs.constants.R_OK | fs.constants.W_OK)
+        // DB already exists, set listeners for every URL.
+        debug('webHook DB loaded, setting listeners...')
+        setListeners(this)
+      } catch (e) {
+        // DB file not found, initialize it
+        if (e.code === 'ENOENT') {
+          // file not found, init DB:
+          debug('webHook DB init')
+          initDB(this.db)
+        } else throw e
+      }
+    }
+  }
+
+  trigger (shortname, jsonData, headersData) {
+    // trigger a webHook
+    this.emitter.emit(shortname, shortname, jsonData, headersData)
+  }
+
+  add (shortname, url) { // url is required
+    // add a new webHook.
+    if (typeof shortname !== 'string') throw new TypeError('shortname required!')
+    if (typeof url !== 'string') throw new TypeError('Url must be a string')
+
+    const self = this
+    return new Promise((resolve, reject) => {
+      try {
+        const obj = self.isMemDb ? self.db : jsonfile.readFileSync(self.db)
+        if (!obj) throw new Error('can\'t read webHook DB content')
+
+        let modified = false
+        let encUrl
+        if (obj[shortname]) {
+          // shortname already exists
+          if (obj[shortname].indexOf(url) === -1) {
+            // url doesn't exists for given shortname
+            debug('url added to an existing shortname!')
+            obj[shortname].push(url)
+            encUrl = getListenerKey(shortname, url)
+            self._functions[encUrl] = getRequestFunction(self, url)
+            self.emitter.on(shortname, self._functions[encUrl])
+            modified = true
+          }
+        } else {
+          // new shortname
+          debug('new shortname!')
+          obj[shortname] = [url]
+          encUrl = getListenerKey(shortname, url)
+          self._functions[encUrl] = getRequestFunction(self, url)
+          self.emitter.on(shortname, self._functions[encUrl])
+          modified = true
+        }
+
+        // actualize DB
+        if (modified) {
+          if (!self.isMemDb) jsonfile.writeFileSync(self.db, obj)
+          resolve(true)
+        } else resolve(false)
+      } catch (e) {
+        reject(e)
       }
     })
-  })
-}
+  }
 
-// async method
-WebHooks.prototype.getWebHook = function (shortname) {
-  // return the selected WebHook.
-  var self = this
-  return new Promise(function (resolve, reject) {
-    if (self.isMemDb) {
-      resolve(self.db[shortname] || {})
-    } else {
-      jsonfile.readFile(self.db, function (err, obj) {
+  remove (shortname, url) { // url is optional
+    // if url exists remove only the url attached to the selected webHook.
+    // else remove the webHook and all the attached URLs.
+    if (typeof shortname !== 'string') {
+      throw new TypeError('shortname required!')
+    }
+    const self = this
+    return new Promise((resolve, reject) => {
+      // Basically removeListener will look up the given function by reference, if it found that function it will remove it from the event hander.
+      try {
+        if (typeof url !== 'undefined') {
+          // save in db
+          removeUrlFromShortname(self, shortname, url, (err, done) => {
+            if (err) return reject(err)
+            if (done) {
+              // remove only the specified url
+              const urlKey = getListenerKey(shortname, url)
+              self.emitter.removeListener(shortname, self._functions[urlKey])
+              delete self._functions[urlKey]
+              resolve(true)
+            } else resolve(false)
+          })
+        } else {
+          // remove every event listener attached to the webHook shortname.
+          self.emitter.removeAllListeners(shortname)
+
+          // delete all the callbacks in _functions for the specified shortname. Let's loop over the url taken from the DB.
+          const obj = self.isMemDb ? self.db : jsonfile.readFileSync(self.db)
+
+          if (Object.prototype.hasOwnProperty.call(obj, shortname)) {
+            const urls = obj[shortname]
+            urls.forEach((u) => {
+              const urlKey = getListenerKey(shortname, u)
+              delete self._functions[urlKey]
+            })
+
+            // save it back to the DB
+            removeShortname(self, shortname, (err) => {
+              if (err) return reject(err)
+              resolve(true)
+            })
+          } else {
+            debug('webHook doesn\'t exist')
+            resolve(false)
+          }
+        }
+      } catch (e) {
+        reject(e)
+      }
+    })
+  }
+
+  // async method
+  getDB () {
+    // return the whole JSON DB file.
+    const self = this
+    return new Promise((resolve, reject) => {
+      if (self.isMemDb) return resolve(self.db)
+      jsonfile.readFile(self.db, (err, obj) => {
         if (err) {
           reject(err) // file not found
         } else {
-          resolve(obj[shortname] || {}) // file exists
+          resolve(obj) // file exists
         }
       })
-    }
-  })
-}
+    })
+  }
 
-WebHooks.prototype.getListeners = function () {
-  return this._functions
-}
+  // async method
+  getWebHook (shortname) {
+    // return the selected WebHook.
+    const self = this
+    return new Promise((resolve, reject) => {
+      if (self.isMemDb) {
+        resolve(self.db[shortname] || [])
+      } else {
+        jsonfile.readFile(self.db, (err, obj) => {
+          if (err) {
+            reject(err) // file not found
+          } else {
+            resolve(obj[shortname] || []) // file exists
+          }
+        })
+      }
+    })
+  }
 
-WebHooks.prototype.getEmitter = function () {
-  return this.emitter
+  getListeners () {
+    return this._functions
+  }
+
+  getEmitter () {
+    return this.emitter
+  }
 }
 
 module.exports = WebHooks

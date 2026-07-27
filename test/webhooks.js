@@ -1,15 +1,15 @@
-var chai = require('chai')
-var expect = chai.expect
-var should = chai.should()
-var debug = require('debug')('test-suite')
-var http = require('http')
-var fs = require('fs')
-var path = require('path')
-var WebHooks = require('../index')
-var webHooks
-var emitter
-var DB_FILE = path.join(__dirname, './webHooksDB.json') // json file that store webhook URLs
-var DB_OBJECT = {
+const chai = require('chai')
+const expect = chai.expect
+const should = chai.should()
+const debug = require('debug')('test-suite')
+const http = require('http')
+const fs = require('fs')
+const path = require('path')
+const WebHooks = require('../index')
+let webHooks
+let emitter
+const DB_FILE = path.join(__dirname, './webHooksDB.json') // json file that store webhook URLs
+const DB_OBJECT = {
   makeASound: ['http://localhost/beep'],
   flashALight: ['http://localhost/blink']
 }
@@ -34,36 +34,36 @@ var DB_OBJECT = {
 // - fire the webHook 1000 times. Expected 1000 REST calls.
 
 // instantiate a basic web server
-var PORT = 8000
-var URI = 'http://127.0.0.1:' + PORT
+const PORT = 8000
+const URI = `http://127.0.0.1:${PORT}`
 
-var OUTCOMES = {}
-var LOADTEST = 0
+let OUTCOMES = {}
+let LOADTEST = 0
 
 function handleRequest (request, response) {
   debug('called method:', request.method)
   debug('called URL:', request.url)
   debug('headers:', request.headers)
-  var body = []
-  request.on('data', function (chunk) {
-    body.push(chunk)
-  }).on('end', function () {
-    body = Buffer.concat(body).toString() // as string
+  const chunks = []
+  request.on('data', (chunk) => {
+    chunks.push(chunk)
+  }).on('end', () => {
+    const body = Buffer.concat(chunks).toString() // as string
     OUTCOMES[request.url] = {
       headers: request.headers,
-      body: body
+      body
     }
     if (request.url.indexOf('/2/') !== -1) LOADTEST++
     debug('body:', body)
-    if (request.url.indexOf('/fail') !== -1) { response.writeHead(400, {'Content-Type': 'application/json'}) } else {
-      response.writeHead(200, {'Content-Type': 'application/json'})
+    if (request.url.indexOf('/fail') !== -1) { response.writeHead(400, { 'Content-Type': 'application/json' }) } else {
+      response.writeHead(200, { 'Content-Type': 'application/json' })
     }
     response.end('Path Hit: ' + request.url)
   })
 }
 
 // Create a server
-var server = http.createServer(handleRequest)
+const server = http.createServer(handleRequest)
 
 // To verify that basic CRUD operations work correctly both with in-memory and
 // on-disk database, we use these functions with the two different settings
@@ -71,9 +71,9 @@ var server = http.createServer(handleRequest)
 
 function addShortnameRequired (done) {
   try {
-    webHooks.add(null, URI + '/1/aaa').then(function () {
+    webHooks.add(null, URI + '/1/aaa').then(() => {
       done('Error expected')
-    }).catch(function (err) {
+    }).catch((err) => {
       throw new Error(err)
     })
   } catch (e) {
@@ -84,9 +84,9 @@ function addShortnameRequired (done) {
 
 function addUrlRequired (done) {
   try {
-    webHooks.add('hei', null).then(function () {
+    webHooks.add('hei', null).then(() => {
       done('Error expected')
-    }).catch(function (err) {
+    }).catch((err) => {
       throw new Error(err)
     })
   } catch (e) {
@@ -97,9 +97,9 @@ function addUrlRequired (done) {
 
 function removeShortnameRequired (done) {
   try {
-    webHooks.remove(null, 'hei').then(function () {
+    webHooks.remove(null, 'hei').then(() => {
       done('Error expected')
-    }).catch(function (err) {
+    }).catch((err) => {
       throw new Error(err)
     })
   } catch (e) {
@@ -109,91 +109,91 @@ function removeShortnameRequired (done) {
 }
 
 function getDBReturnsData (done) {
-  webHooks.getDB().then(function (db) {
+  webHooks.getDB().then((db) => {
     should.exist(db)
     done()
-  }).catch(function (e) {
+  }).catch((e) => {
     throw e
   })
 }
 
 function addWebhook1 (done) {
-  webHooks.add('hook1', URI + '/1/aaa').then(function () {
+  webHooks.add('hook1', URI + '/1/aaa').then(() => {
     done()
-  }).catch(function (err) {
+  }).catch((err) => {
     throw new Error(err)
   })
 }
 
 function addUrlToHook1 (done) {
-  webHooks.add('hook1', URI + '/1/bbb').then(function () {
+  webHooks.add('hook1', URI + '/1/bbb').then(() => {
     done()
-  }).catch(function (err) {
+  }).catch((err) => {
     throw new Error(err)
   })
 }
 
 function getWebhook1 (done) {
-  webHooks.getWebHook('hook1').then(function (obj) {
+  webHooks.getWebHook('hook1').then((obj) => {
     should.exist(obj)
     expect(obj.length).to.equal(2)
     expect(obj).to.have.members([URI + '/1/aaa', URI + '/1/bbb'])
     done()
-  }).catch(function (err) {
+  }).catch((err) => {
     throw new Error(err)
   })
 }
 
 function deleteSingleUrl (done) {
-  webHooks.remove('hook1', URI + '/1/bbb').then(function (removed) {
+  webHooks.remove('hook1', URI + '/1/bbb').then((removed) => {
     expect(removed).to.equal(true)
     done()
-  }).catch(function (err) {
+  }).catch((err) => {
     done(err)
   })
 }
 
 function deleteMissingUrl (done) {
-  webHooks.remove('hook1', URI + '/1/bbb').then(function (removed) {
+  webHooks.remove('hook1', URI + '/1/bbb').then((removed) => {
     expect(removed).to.equal(false)
     done()
-  }).catch(function (err) {
+  }).catch((err) => {
     done(err)
   })
 }
 
 function deleteMissingHook (done) {
-  webHooks.remove('not-existing').then(function (removed) {
+  webHooks.remove('not-existing').then((removed) => {
     expect(removed).to.equal(false)
     done()
-  }).catch(function (err) {
+  }).catch((err) => {
     done(err)
   })
 }
 
 function deleteMissingUrlFromMissingHook (done) {
-  webHooks.remove('not-existing', URI + '/missing').then(function (removed) {
+  webHooks.remove('not-existing', URI + '/missing').then((removed) => {
     expect(removed).to.equal(false)
     done()
-  }).catch(function (err) {
+  }).catch((err) => {
     done(err)
   })
 }
 
 function deleteHook1 (done) {
-  webHooks.remove('hook1').then(function (removed) {
+  webHooks.remove('hook1').then((removed) => {
     expect(removed).to.equal(true)
     done()
-  }).catch(function (err) {
+  }).catch((err) => {
     done(err)
   })
 }
 
 describe('Tests >', function () {
   before(function (done) {
-        // Lets start our server
-    server.listen(PORT, function () {
-            // Callback triggered when server is successfully listening. Hurray!
+    // Lets start our server
+    server.listen(PORT, () => {
+      // Callback triggered when server is successfully listening. Hurray!
       debug('Server listening on: http://localhost:%s', PORT)
       done()
     })
@@ -224,13 +224,13 @@ describe('Tests >', function () {
   it('keeps listener references isolated across instances with the same URL', function (done) {
     this.timeout(3000)
 
-    var sharedUrl = URI + '/shared'
-    var firstWebHooks = new WebHooks({
+    const sharedUrl = URI + '/shared'
+    const firstWebHooks = new WebHooks({
       db: {
         shared: [sharedUrl]
       }
     })
-    var secondWebHooks = new WebHooks({
+    const secondWebHooks = new WebHooks({
       db: {
         shared: [sharedUrl]
       }
@@ -238,16 +238,16 @@ describe('Tests >', function () {
 
     expect(firstWebHooks.getListeners()).to.not.equal(secondWebHooks.getListeners())
 
-    firstWebHooks.remove('shared', sharedUrl).then(function (removed) {
+    firstWebHooks.remove('shared', sharedUrl).then((removed) => {
       expect(removed).to.equal(true)
 
       OUTCOMES = {}
       secondWebHooks.trigger('shared')
-      setTimeout(function () {
+      setTimeout(() => {
         should.exist(OUTCOMES['/shared'])
         done()
       }, 250)
-    }).catch(function (err) {
+    }).catch((err) => {
       done(err)
     })
   })
@@ -255,29 +255,29 @@ describe('Tests >', function () {
   it('keeps listener references isolated across shortnames with the same URL', function (done) {
     this.timeout(3000)
 
-    var sharedUrl = URI + '/shared-shortnames'
-    var instance = new WebHooks({
+    const sharedUrl = URI + '/shared-shortnames'
+    const instance = new WebHooks({
       db: {
         first: [sharedUrl],
         second: [sharedUrl]
       }
     })
 
-    instance.remove('first', sharedUrl).then(function (removed) {
+    instance.remove('first', sharedUrl).then((removed) => {
       expect(removed).to.equal(true)
 
       OUTCOMES = {}
       instance.trigger('first')
-      setTimeout(function () {
+      setTimeout(() => {
         should.not.exist(OUTCOMES['/shared-shortnames'])
 
         instance.trigger('second')
-        setTimeout(function () {
+        setTimeout(() => {
           should.exist(OUTCOMES['/shared-shortnames'])
           done()
         }, 250)
       }, 250)
-    }).catch(function (err) {
+    }).catch((err) => {
       done(err)
     })
   })
@@ -299,7 +299,7 @@ describe('Tests >', function () {
   })
 
   it('check wether the DB file exists or not', function (done) {
-    fs.stat(DB_FILE, function (err) {
+    fs.stat(DB_FILE, (err) => {
       should.not.exist(err)
       done()
     })
@@ -316,7 +316,7 @@ describe('Tests >', function () {
 
   it('httpSuccessCodes accepts array only', function (done) {
     try {
-      var a = new WebHooks({
+      const a = new WebHooks({
         db: DB_FILE,
         httpSuccessCodes: null
       })
@@ -329,7 +329,7 @@ describe('Tests >', function () {
 
   it('httpSuccessCodes accepts not empty array only', function (done) {
     try {
-      var b = new WebHooks({
+      const b = new WebHooks({
         db: DB_FILE,
         httpSuccessCodes: []
       })
@@ -348,7 +348,7 @@ describe('Tests >', function () {
   it('should fire the webHook with no body or headers', function (done) {
     this.timeout(3000)
     webHooks.trigger('hook1')
-    setTimeout(function () {
+    setTimeout(() => {
       debug('OUTCOME-1:', OUTCOMES)
       should.exist(OUTCOMES['/1/aaa'])
       should.exist(OUTCOMES['/1/bbb'])
@@ -366,7 +366,7 @@ describe('Tests >', function () {
     webHooks.trigger('hook1', {
       hello: 'world'
     })
-    setTimeout(function () {
+    setTimeout(() => {
       debug('OUTCOME-2:', OUTCOMES)
       should.exist(OUTCOMES['/1/aaa'])
       should.exist(OUTCOMES['/1/bbb'])
@@ -384,7 +384,7 @@ describe('Tests >', function () {
     webHooks.trigger('hook1', {}, {
       hero: 'hulk'
     })
-    setTimeout(function () {
+    setTimeout(() => {
       debug('OUTCOME-3:', OUTCOMES)
       should.exist(OUTCOMES['/1/aaa'])
       should.exist(OUTCOMES['/1/bbb'])
@@ -404,7 +404,7 @@ describe('Tests >', function () {
     }, {
       hero: 'iron-man'
     })
-    setTimeout(function () {
+    setTimeout(() => {
       debug('OUTCOME-3:', OUTCOMES)
       should.exist(OUTCOMES['/1/aaa'])
       should.exist(OUTCOMES['/1/bbb'])
@@ -424,7 +424,7 @@ describe('Tests >', function () {
   it('fire the webHook and make sure just one URL is called', function (done) {
     OUTCOMES = {}
     webHooks.trigger('hook1')
-    setTimeout(function () {
+    setTimeout(() => {
       should.exist(OUTCOMES['/1/aaa'])
       should.not.exist(OUTCOMES['/1/bbb'])
       expect(OUTCOMES['/1/aaa']).to.have.property('headers')
@@ -438,7 +438,7 @@ describe('Tests >', function () {
   it('should fire the deleted webHook and make sure no request is dispatched at all', function (done) {
     OUTCOMES = {}
     webHooks.trigger('hook1')
-    setTimeout(function () {
+    setTimeout(() => {
       expect(OUTCOMES).to.deep.equal({})
       should.not.exist(OUTCOMES['/1/aaa'])
       should.not.exist(OUTCOMES['/1/bbb'])
@@ -448,22 +448,22 @@ describe('Tests >', function () {
 
   it('should create a new webHook called hook2 for loadtest', function (done) {
     webHooks.add('hook2', URI + '/2/aaa').then(
-            webHooks.add('hook2', URI + '/2/bbb').then(function () {
-              done()
-            })
-        ).catch(function (err) {
-          throw new Error(err)
-        })
+      webHooks.add('hook2', URI + '/2/bbb').then(() => {
+        done()
+      })
+    ).catch((err) => {
+      throw new Error(err)
+    })
   })
 
   it('check webHooks were saved successfully using the .getWebHook method', function (done) {
-    webHooks.getWebHook('hook2').then(function (obj) {
+    webHooks.getWebHook('hook2').then((obj) => {
       debug('hook2:', obj)
       should.exist(obj)
       expect(obj.length).to.equal(2)
       expect(obj).to.have.members([URI + '/2/aaa', URI + '/2/bbb'])
       done()
-    }).catch(function (err) {
+    }).catch((err) => {
       throw new Error(err)
     })
   })
@@ -471,22 +471,22 @@ describe('Tests >', function () {
   it('should fire the webHook 1000 times and 2000 REST calls are expected', function (done) {
     this.timeout(30 * 1000)
 
-    var totalTriggers = 1000
-    var batchSize = 50
-    var sent = 0
+    const totalTriggers = 1000
+    const batchSize = 50
+    let sent = 0
     LOADTEST = 0
 
     function sendBatch () {
-      var batchEnd = Math.min(sent + batchSize, totalTriggers)
-      for (var i = sent + 1; i <= batchEnd; i++) {
+      const batchEnd = Math.min(sent + batchSize, totalTriggers)
+      for (let i = sent + 1; i <= batchEnd; i++) {
         webHooks.trigger('hook2', {
-          i: i
+          i
         })
       }
       sent = batchEnd
     }
 
-    var loop = setInterval(function () {
+    const loop = setInterval(() => {
       console.log('Got', LOADTEST + '/2000', 'REST calls')
       if (LOADTEST === sent * 2 && sent < totalTriggers) {
         sendBatch()
@@ -513,20 +513,20 @@ describe('Events >', function () {
   })
 
   it('Should add a new Hook #3', function (done) {
-    webHooks.add('hook3', URI + '/3/aaa').then(function () {
+    webHooks.add('hook3', URI + '/3/aaa').then(() => {
       done()
-    }).catch(function (err) {
+    }).catch((err) => {
       throw new Error(err)
     })
   })
 
   it('Should catch a specific success event', function (done) {
-    emitter.on('hook3.failure', function (shortname, stCode, body) {
+    emitter.on('hook3.failure', (shortname, stCode, body) => {
       debug('hook3.failure:', shortname, stCode, body)
       done('hook3.failure error: wrong event catched.')
     })
-    emitter.on('hook3.success', function (shortname, statusCode, body) {
-      debug('hook3.success:', {shortname: shortname, statusCode: statusCode, body: body})
+    emitter.on('hook3.success', (shortname, statusCode, body) => {
+      debug('hook3.success:', { shortname, statusCode, body })
       should.exist(shortname)
       should.exist(statusCode)
       should.exist(body)
@@ -535,7 +535,7 @@ describe('Events >', function () {
       body.should.equal('Path Hit: /3/aaa') // body response from the server
       done()
     })
-        // fire the hook
+    // fire the hook
     webHooks.trigger('hook3', {
       header1: 'pippo'
     }, {
@@ -546,30 +546,30 @@ describe('Events >', function () {
   it('Should remove the specific event listener and fire the hook', function (done) {
     this.timeout(4000)
     emitter.removeAllListeners('hook3')
-    emitter.on('hook3.success', function (s, st, body) {
+    emitter.on('hook3.success', (s, st, body) => {
       debug('hook3.success error:', s, st, body)
       done('error: removed listener should not be called!')
     })
     emitter.removeAllListeners('hook3')
     webHooks.trigger('hook3')
-    setTimeout(function () {
+    setTimeout(() => {
       done()
     }, 2000)
   })
 
   it('add a failing webHook called hook4', function (done) {
-    webHooks.add('hook4', URI + '/4/fail').then(function () {
+    webHooks.add('hook4', URI + '/4/fail').then(() => {
       done()
-    }).catch(function (err) {
+    }).catch((err) => {
       throw new Error(err)
     })
   })
 
   it('Should catch a specific failure event', function (done) {
-    emitter.on('hook4.success', function () {
+    emitter.on('hook4.success', () => {
       done('error: wrong event catched!')
     })
-    emitter.on('hook4.failure', function (shortname, statusCode, body) {
+    emitter.on('hook4.failure', (shortname, statusCode, body) => {
       should.exist(shortname)
       should.exist(statusCode)
       should.exist(body)
@@ -578,7 +578,7 @@ describe('Events >', function () {
       body.should.equal('Path Hit: /4/fail')
       done()
     })
-        // fire the hook
+    // fire the hook
     webHooks.trigger('hook4', {
       header1: 'foo'
     }, {
@@ -587,26 +587,26 @@ describe('Events >', function () {
   })
 
   it('Should add new hooks for multiple events catch', function (done) {
-    webHooks.add('hook5', URI + '/5/success').then(function () {
-      webHooks.add('hook6', URI + '/6/success').then(function () {
-        webHooks.add('hook7', URI + '/7/fail').then(function () {
-          webHooks.add('hook8', URI + '/8/fail').then(function () {
+    webHooks.add('hook5', URI + '/5/success').then(() => {
+      webHooks.add('hook6', URI + '/6/success').then(() => {
+        webHooks.add('hook7', URI + '/7/fail').then(() => {
+          webHooks.add('hook8', URI + '/8/fail').then(() => {
             done()
           })
         })
       })
-    }).catch(function (err) {
+    }).catch((err) => {
       throw new Error(err)
     })
   })
 
   it('Should catch all the success events', function (done) {
-    var got = 0
-    emitter.on('*.failure', function (shortname, stCode, body) {
+    let got = 0
+    emitter.on('*.failure', (shortname, stCode, body) => {
       debug('error *.failure:', shortname, stCode, body)
       done('*.failure error: wrong event catched.')
     })
-    emitter.on('*.success', function (shortname, statusCode, body) {
+    emitter.on('*.success', (shortname, statusCode, body) => {
       debug('captured events:', got)
       should.exist(shortname)
       should.exist(statusCode)
@@ -621,18 +621,18 @@ describe('Events >', function () {
         done()
       }
     })
-        // fire the hooks
+    // fire the hooks
     webHooks.trigger('hook5')
     webHooks.trigger('hook6')
   })
 
   it('Should catch all the failure events', function (done) {
-    var got = 0
-    emitter.on('*.success', function (shortname, stCode, body) {
+    let got = 0
+    emitter.on('*.success', (shortname, stCode, body) => {
       debug('error *.success:', shortname, stCode, body)
       done('*.success error: wrong event catched.')
     })
-    emitter.on('*.failure', function (shortname, statusCode, body) {
+    emitter.on('*.failure', (shortname, statusCode, body) => {
       debug('captured events:', got)
       should.exist(shortname)
       should.exist(statusCode)
@@ -647,14 +647,14 @@ describe('Events >', function () {
         done()
       }
     })
-        // fire the hooks
+    // fire the hooks
     webHooks.trigger('hook7')
     webHooks.trigger('hook8')
   })
 
   after(function (done) {
-        // stop the server
-    server.close(function () {
+    // stop the server
+    server.close(() => {
       done()
     })
   })
